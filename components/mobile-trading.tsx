@@ -15,11 +15,12 @@ const positions = [
 export function MobileTrading() {
   const [activeTab, setActiveTab] = useState("home")
   const [mode, setMode] = useState<"demo" | "live">("demo")
+  const [tokenInput, setTokenInput] = useState("")
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 max-w-2xl mx-auto w-full pb-32 pt-6">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 max-w-2xl mx-auto w-full pb-40 pt-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Image
@@ -147,32 +148,34 @@ export function MobileTrading() {
         </div>
       </div>
       
-      {/* Fixed Contract Address Input */}
-      <div className="fixed bottom-[72px] left-0 right-0 px-4 py-3 bg-black border-t border-[#1A1A1A] z-10">
-        <div className="relative max-w-2xl mx-auto">
-          <Input
-            placeholder="Contract Address or Token"
-            className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
-          />
-          <Button 
-            onClick={() => {
-              if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                navigator.clipboard.readText().then(text => {
-                  console.log('Pasted:', text);
-                  // Handle the pasted text here
-                }).catch(err => {
-                  console.error('Failed to read clipboard:', err);
-                });
-              }
-            }}
-            className="absolute right-1 top-1 bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-10 px-4 rounded-full border border-[#4A4A4A]"
-          >
-            Paste
-          </Button>
-        </div>
-      </div>
+      
 
-      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-[#1A1A1A] shadow-[0_-8px_16px_rgba(0,0,0,0.35)] z-20 pb-4">
+      <div className="fixed bottom-3 left-0 right-0 bg-black border-t border-[#1A1A1A] shadow-[0_-8px_16px_rgba(0,0,0,0.35)] z-20 pb-5">
+        {/* Joined Contract Address/Token Input */}
+        <div className="px-6 pt-4 max-w-2xl mx-auto">
+          <div className="relative">
+            <Input
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder="Contract Address or Token"
+              className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+            />
+            <Button 
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                  navigator.clipboard.readText().then(text => {
+                    setTokenInput(text)
+                  }).catch(err => {
+                    console.error('Failed to read clipboard:', err);
+                  });
+                }
+              }}
+              className="absolute right-1 top-1 bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-10 px-4 rounded-full border border-[#4A4A4A]"
+            >
+              Paste
+            </Button>
+          </div>
+        </div>
         <div className="flex items-center justify-between px-6 py-3 pb-[calc(env(safe-area-inset-bottom))] gap-2 max-w-2xl mx-auto">
           <button
             onClick={() => setActiveTab("home")}
@@ -251,6 +254,8 @@ export function MobileTrading() {
           </button>
         </div>
       </div>
+      {/* Bottom background fill to cover gap to screen edge */}
+      <div className="fixed bottom-0 left-0 right-0 h-3 bg-black pointer-events-none z-10" />
     </div>
   )
 }
