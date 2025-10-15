@@ -12,6 +12,7 @@
   --popover-foreground: oklch(0.98 0 0);
   --primary: oklch(0.75 0.15 85);
   --primary-foreground: oklch(0.12 0.02 264);
+  --brand-gold: #D4AF37;
   --secondary: oklch(0.22 0.02 264);
   --secondary-foreground: oklch(0.98 0 0);
   --muted: oklch(0.25 0.02 264);
@@ -48,6 +49,7 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.205 0 0);
+  --brand-gold: #D4AF37;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
