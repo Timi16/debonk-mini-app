@@ -1,21 +1,77 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-
-const positions = [
-  { name: "$Eclipse", mc: "$3165", price: "$3,165", change: "-98%", isPositive: false },
-  { name: "$Eclipse", mc: "$3165", price: "$3,165", change: "-98%", isPositive: false },
-  { name: "$Eclipse", mc: "$3165", price: "$3,165", change: "+98%", isPositive: true },
-  { name: "$Eclipse", mc: "$3165", price: "$3,165", change: "+98%", isPositive: true },
-]
+import { useWalletBalance, usePositions, useChains } from "../hooks/useWallet"
 
 export function MobileTrading() {
   const [activeTab, setActiveTab] = useState("home")
   const [mode, setMode] = useState<"demo" | "live">("demo")
   const [tokenInput, setTokenInput] = useState("")
+  const [selectedChain, setSelectedChain] = useState("solana")
+  const [telegramId, setTelegramId] = useState<string>("")
+  
+  // Fetch chains
+  const { chains } = useChains()
+  
+  // Get telegramId from Telegram WebApp
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp
+      tg.ready()
+      const user = tg.initDataUnsafe?.user
+      if (user?.id) {
+        setTelegramId(user.id.toString())
+      }
+    } else {
+      // Fallback for testing
+      setTelegramId("123456789")
+    }
+  }, [])
+  
+  // Fetch wallet balance and positions
+  const { balance, loading: balanceLoading, error: balanceError, refetch: refetchBalance } = useWalletBalance(
+    telegramId,
+    selectedChain
+  )
+ 
+  const { positions, loading: positionsLoading, error: positionsError, refetch: refetchPositions } = usePositions(
+    telegramId,
+    selectedChain
+  )
+  
+  // Format balance display
+  const formatBalance = (bal: number | undefined) => {
+    if (bal === undefined) return "0.000"
+    if (bal === 0) return "0.000"
+    if (bal < 0.001) return bal.toFixed(6)
+    if (bal < 1) return bal.toFixed(4)
+    return bal.toFixed(3)
+  }
+  
+  // Get chain symbol
+  const getChainSymbol = () => {
+    const chain = chains.find(c => c.key === selectedChain)
+    return chain?.nativeToken?.symbol || "SOL"
+  }
+  
+  // Format USD value
+  const formatUSD = (value: number) => {
+    if (value === 0) return "$0.00"
+    if (value < 0.01) return `$${value.toFixed(4)}`
+    return `$${value.toFixed(2)}`
+  }
+  
+  // Calculate position change (mock for now - you'll need price data)
+  const calculatePositionChange = (position: any) => {
+    // TODO: Fetch current price and calculate actual PnL
+    const randomChange = (Math.random() * 200 - 100).toFixed(2)
+    return {
+      change: `${randomChange}%`,
+      isPositive: parseFloat(randomChange) > 0
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
@@ -33,6 +89,18 @@ export function MobileTrading() {
             <h1 className="text-xl font-bold text-white">Debonk</h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Chain Selector */}
+            <select
+              value={selectedChain}
+              onChange={(e) => setSelectedChain(e.target.value)}
+              className="bg-[#1A1A1A] text-white text-xs px-3 py-2 rounded-lg border border-[#2A2A2A] hover:bg-[#252525] transition-colors"
+            >
+              {chains.map((chain) => (
+                <option key={chain.key} value={chain.key}>
+                  {chain.name}
+                </option>
+              ))}
+            </select>
             <button aria-label="Help" className="w-9 h-9 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525] transition-colors">
               <Image
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/material-symbols-light_help-wzZ3QyqUPIVgaNK2vj5Hj5spBBxnwv.png"
@@ -56,8 +124,26 @@ export function MobileTrading() {
 
         <div className="flex items-center justify-center w-full mb-6">
           <div className="flex items-center gap-2 bg-[#0F0F0F] border border-[#1F1F1F] rounded-full px-2 py-1.5">
-            <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">• Demo</div>
-            <div className="px-3 py-1 rounded-full text-xs font-medium bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]">• Live</div>
+            <div
+              onClick={() => setMode("demo")}
+              className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                mode === "demo"
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"
+              }`}
+            >
+              • Demo
+            </div>
+            <div
+              onClick={() => setMode("live")}
+              className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                mode === "live"
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"
+              }`}
+            >
+              • Live
+            </div>
           </div>
         </div>
 
@@ -81,20 +167,26 @@ export function MobileTrading() {
                 alt="Copy"
                 width={14}
                 height={14}
-                className="w-3.5 h-3.5 opacity-50"
+                className="w-3.5 h-3.5 opacity-50 cursor-pointer"
               />
             </div>
-            <p className="text-xs text-gray-400 mb-4">Balance ~ $0.00</p>
+            <p className="text-xs text-gray-400 mb-4">
+              {balanceLoading ? "Loading..." : balanceError ? "Error loading balance" : `Balance ~ ${formatUSD(balance?.balance || 0)}`}
+            </p>
             <div className="flex items-baseline gap-2 mb-6">
-              <h2 className="text-4xl font-bold text-white">0.000</h2>
-              <span className="text-xl text-gray-400">SOL</span>
-              <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Vector%20%281%29-gWZ2CwEa51DiP49O5aKvC3WvEZ6Wpf.png"
-                alt="Refresh"
-                width={16}
-                height={16}
-                className="w-4 h-4 ml-1 opacity-50"
-              />
+              <h2 className="text-4xl font-bold text-white">
+                {balanceLoading ? "..." : formatBalance(balance?.balance)}
+              </h2>
+              <span className="text-xl text-gray-400">{getChainSymbol()}</span>
+              <button onClick={refetchBalance} disabled={balanceLoading}>
+                <Image
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Vector%20%281%29-gWZ2CwEa51DiP49O5aKvC3WvEZ6Wpf.png"
+                  alt="Refresh"
+                  width={16}
+                  height={16}
+                  className={`w-4 h-4 ml-1 opacity-50 cursor-pointer hover:opacity-100 transition-opacity ${balanceLoading ? 'animate-spin' : ''}`}
+                />
+              </button>
             </div>
             <p className="text-sm text-red-400/90 mb-6">▼ 32.95%</p>
 
@@ -109,47 +201,57 @@ export function MobileTrading() {
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-white">Position Overview</h3>
+          <button
+            onClick={refetchPositions}
+            disabled={positionsLoading}
+            className="text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            {positionsLoading ? "Loading..." : "Refresh"}
+          </button>
         </div>
 
         <div className="space-y-3 mb-6">
-          {positions.map((position, index) => (
-            <div key={index} className="bg-[#111111] border border-[#252525] rounded-2xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <div className="text-base font-semibold text-white">{position.name}</div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
-                      MC {position.mc}
-                    </span>
-                    <span
-                      className={`px-2 py-1 rounded-full text-[10px] leading-none border ${
-                        position.isPositive
-                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                          : "bg-red-500/15 text-red-400 border-red-500/30"
-                      }`}
-                    >
-                      {position.price}
-                    </span>
+          {positionsLoading ? (
+            <div className="text-center text-gray-400 py-8">Loading positions...</div>
+          ) : positionsError ? (
+            <div className="text-center text-red-400 py-8">Error: {positionsError}</div>
+          ) : positions.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">No positions found</div>
+          ) : (
+            positions.map((position) => {
+              const { change, isPositive } = calculatePositionChange(position)
+              return (
+                <div key={position.id} className="bg-[#111111] border border-[#252525] rounded-2xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <div className="text-base font-semibold text-white">{position.tokenTicker}</div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
+                          {position.amountHeld} tokens
+                        </span>
+                        <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
+                          Avg: ${parseFloat(position.avgBuyPrice).toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-semibold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                        {change}
+                      </span>
+                      <Button className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444]">
+                        Sell 100%
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold ${position.isPositive ? "text-emerald-400" : "text-red-400"}`}>
-                    {position.change}
-                  </span>
-                  <Button className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444]">
-                    Sell 100%
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+              )
+            })
+          )}
         </div>
       </div>
       
-      
-
       <div className="fixed bottom-3 left-0 right-0 bg-black border-t border-[#1A1A1A] shadow-[0_-8px_16px_rgba(0,0,0,0.35)] z-20 pb-5">
         {/* Joined Contract Address/Token Input */}
         <div className="px-6 pt-4 max-w-2xl mx-auto">
@@ -160,7 +262,7 @@ export function MobileTrading() {
               placeholder="Contract Address or Token"
               className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
             />
-            <Button 
+            <Button
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.clipboard) {
                   navigator.clipboard.readText().then(text => {
@@ -186,7 +288,7 @@ export function MobileTrading() {
               alt="Home"
               width={24}
               height={24}
-              className="w-6 h-6 opacity-50"
+              className={`w-6 h-6 ${activeTab === "home" ? "" : "opacity-50"}`}
             />
             {activeTab === "home" && (
               <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
@@ -254,6 +356,7 @@ export function MobileTrading() {
           </button>
         </div>
       </div>
+      
       {/* Bottom background fill to cover gap to screen edge */}
       <div className="fixed bottom-0 left-0 right-0 h-3 bg-black pointer-events-none z-10" />
     </div>
