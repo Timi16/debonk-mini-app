@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://170.75.163.164:5119';
-export async function GET_POSITIONS(request: NextRequest) {
+
+export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const telegramId = searchParams.get('telegramId');
@@ -26,13 +26,22 @@ export async function GET_POSITIONS(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      cache: 'no-store', // Don't cache for real-time positions
+      cache: 'no-store',
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      // Handle non-JSON error responses
+      let errorMessage = 'Failed to fetch positions';
+      try {
+        const error = await response.json();
+        errorMessage = error.error || errorMessage;
+      } catch {
+        // If response isn't JSON, use status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      
       return NextResponse.json(
-        { error: error.error || 'Failed to fetch positions' },
+        { error: errorMessage },
         { status: response.status }
       );
     }
