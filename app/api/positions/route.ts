@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'vhttp://170.75.163.164:5119';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://170.75.163.164:5119';
 export async function GET_POSITIONS(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
