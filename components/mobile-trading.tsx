@@ -76,7 +76,7 @@ class MiniAppClient {
   private telegramId: string;
   private backendUrl: string;
 
-  constructor(telegramId: string, backendUrl: string = "https://exanthematic-anneliese-friskingly.ngrok-free.dev") {
+  constructor(telegramId: string, backendUrl: string = "http://170.75.163.164:5119") {
     this.telegramId = telegramId;
     this.backendUrl = backendUrl;
   }
@@ -218,44 +218,79 @@ export function MobileTrading() {
   useEffect(() => {
     const initializeMiniApp = async () => {
       try {
+        console.log("=== TELEGRAM MINI APP INIT ===")
+        console.log("window.Telegram:", window.Telegram)
+        console.log("window.Telegram?.WebApp:", window.Telegram?.WebApp)
+        
         if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-          const telegramId = window.Telegram.WebApp.initDataUnsafe?.user?.id
+          console.log("✓ Telegram WebApp exists")
+          
+          console.log("initDataUnsafe:", window.Telegram.WebApp.initDataUnsafe)
+          console.log("initData:", (window.Telegram.WebApp as any).initData)
+          
+          // Try different ways to get the ID
+          const telegramId = 
+            window.Telegram.WebApp.initDataUnsafe?.user?.id ||
+            (window.Telegram.WebApp as any).initData?.user?.id
+          
+          console.log("Extracted telegramId:", telegramId)
+          console.log("Type:", typeof telegramId)
+          
           if (!telegramId) {
+            console.error("❌ Could not extract Telegram ID from any source")
+            console.log("Full initDataUnsafe object:", JSON.stringify(window.Telegram.WebApp.initDataUnsafe, null, 2))
             setError("Could not get Telegram ID")
             setLoading(false)
             return
           }
 
+          console.log("✓ Got Telegram ID:", telegramId)
           const newClient = new MiniAppClient(telegramId.toString())
           setClient(newClient)
 
           // Load chains
+          console.log("Loading chains...")
           const chainsData = await newClient.getAvailableChains()
+          console.log("✓ Chains loaded:", chainsData.length)
           setChains(chainsData)
 
           // Load user profile
+          console.log("Loading user profile...")
           const profile = await newClient.getUserProfile()
+          console.log("✓ Profile loaded:", profile.user.telegramId)
           setUserProfile(profile)
 
           // Load initial balance and positions
+          console.log("Loading balance for solana...")
           const balanceData = await newClient.getBalance("solana")
+          console.log("✓ Balance loaded:", balanceData.balance)
           if (balanceData.success) {
             setBalance(balanceData.balance)
           }
 
+          console.log("Loading positions for solana...")
           const positionsData = await newClient.getPositionsByChain("solana")
+          console.log("✓ Positions loaded:", positionsData.length)
           setPositions(positionsData)
 
+          console.log("Loading wallet address for solana...")
           const addressData = await newClient.getWalletAddress("solana")
+          console.log("✓ Wallet address loaded:", addressData.address)
           if (addressData.success) {
             setWalletAddress(addressData.address)
           }
+
+          console.log("=== INIT COMPLETE ===")
         } else {
+          console.error("❌ Telegram WebApp not available")
+          console.log("window:", typeof window)
+          console.log("window.Telegram:", window?.Telegram)
           setError("Telegram WebApp not available")
         }
       } catch (err) {
-        console.error("Initialization error:", err)
-        setError("Failed to initialize")
+        console.error("❌ Initialization error:", err)
+        console.error("Error stack:", err instanceof Error ? err.stack : "No stack")
+        setError(`Failed to initialize: ${err instanceof Error ? err.message : "Unknown error"}`)
       } finally {
         setLoading(false)
       }
