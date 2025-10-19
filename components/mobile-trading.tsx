@@ -76,7 +76,7 @@ class MiniAppClient {
   private telegramId: string;
   private backendUrl: string;
 
-  constructor(telegramId: string, backendUrl: string = "http://170.75.163.164:5119") {
+  constructor(telegramId: string, backendUrl: string = "https://exanthematic-anneliese-friskingly.ngrok-free.dev") {
     this.telegramId = telegramId;
     this.backendUrl = backendUrl;
   }
