@@ -26,7 +26,7 @@ export function MobileTrading() {
       }
     } else {
       // Fallback for testing
-      setTelegramId("123456789")
+      setTelegramId("8293711101")
     }
   }, [])
   
