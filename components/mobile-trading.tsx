@@ -102,8 +102,15 @@ class MiniAppClient {
   async getAvailableChains(): Promise<Chain[]> {
     try {
       const res = await fetch(`${this.backendUrl}/api/chains`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      console.log("getAvailableChains response status:", res.status);
+      console.log("getAvailableChains response ok:", res.ok);
+      if (!res.ok) {
+        const text = await res.text();
+        console.log("Error response:", text);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
+      console.log("getAvailableChains data:", data);
       return data.chains;
     } catch (error) {
       console.error("getAvailableChains error:", error);
