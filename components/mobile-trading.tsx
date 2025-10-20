@@ -90,9 +90,7 @@ class MiniAppClient {
 
   async getUserProfile(): Promise<UserProfile> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/user/${this.telegramId}`, {
-        cache: "no-store"
-      });
+      const res = await fetch(`${this.backendUrl}/api/user/${this.telegramId}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (error) {
@@ -103,10 +101,7 @@ class MiniAppClient {
 
   async getAvailableChains(): Promise<Chain[]> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/chains`, {
-        cache: "no-store",
-        headers: { "pragma": "no-cache" }
-      });
+      const res = await fetch(`${this.backendUrl}/api/chains`);
       console.log("getAvailableChains response status:", res.status);
       console.log("getAvailableChains response ok:", res.ok);
       if (!res.ok) {
@@ -125,9 +120,7 @@ class MiniAppClient {
 
   async getBalance(chain: string): Promise<Balance> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/balance/${this.telegramId}/${chain}`, {
-        cache: "no-store"
-      });
+      const res = await fetch(`${this.backendUrl}/api/balance/${this.telegramId}/${chain}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (error) {
@@ -139,8 +132,7 @@ class MiniAppClient {
   async getTokenBalance(chain: string, tokenAddress: string): Promise<Balance> {
     try {
       const res = await fetch(
-        `${this.backendUrl}/api/balance/${this.telegramId}/${chain}/${tokenAddress}`,
-        { cache: "no-store" }
+        `${this.backendUrl}/api/balance/${this.telegramId}/${chain}/${tokenAddress}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
@@ -152,9 +144,7 @@ class MiniAppClient {
 
   async getWalletAddress(chain: string): Promise<WalletAddress> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/wallet/${this.telegramId}/${chain}`, {
-        cache: "no-store"
-      });
+      const res = await fetch(`${this.backendUrl}/api/wallet/${this.telegramId}/${chain}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (error) {
@@ -165,9 +155,7 @@ class MiniAppClient {
 
   async getAllPositions(): Promise<Position[]> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}`, {
-        cache: "no-store"
-      });
+      const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       return data.positions;
@@ -180,8 +168,7 @@ class MiniAppClient {
   async getPositionsByChain(chain: string): Promise<Position[]> {
     try {
       const res = await fetch(
-        `${this.backendUrl}/api/positions/${this.telegramId}/chain/${chain}`,
-        { cache: "no-store" }
+        `${this.backendUrl}/api/positions/${this.telegramId}/chain/${chain}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -195,8 +182,7 @@ class MiniAppClient {
   async getActiveCompetitionPositions(): Promise<Position[]> {
     try {
       const res = await fetch(
-        `${this.backendUrl}/api/positions/${this.telegramId}/active-competition`,
-        { cache: "no-store" }
+        `${this.backendUrl}/api/positions/${this.telegramId}/active-competition`
       );
       if (!res.ok) {
         if (res.status === 404) return [];
