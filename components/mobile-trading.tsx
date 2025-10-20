@@ -4,7 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-import WebApp from "@twa-dev/sdk";
+import dynamic from "next/dynamic"
+
+// Dynamically import WebApp only on client side
+let WebApp: any = null
+if (typeof window !== "undefined") {
+  WebApp = require("@twa-dev/sdk").default
+}
 
 // MiniAppClient class
 interface Chain {
