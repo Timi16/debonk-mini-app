@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-import dynamic from "next/dynamic"
 import { TokenDetailModal } from "./token-detail-modal"
 
 // Dynamically import WebApp only on client side
@@ -111,6 +110,29 @@ interface TokenDetails {
   };
 }
 
+interface BuyResponse {
+  success: boolean;
+  telegramId: string;
+  chain: string;
+  tokenAddress: string;
+  amountInNative: number;
+  transactionHash?: string;
+  message?: string;
+  error?: string;
+}
+
+interface SellResponse {
+  success: boolean;
+  telegramId: string;
+  chain: string;
+  tokenAddress: string;
+  percentToSell: number;
+  transactionHash?: string;
+  amountSold?: number;
+  message?: string;
+  error?: string;
+}
+
 class MiniAppClient {
   private telegramId: string;
   private backendUrl: string;
@@ -144,15 +166,8 @@ class MiniAppClient {
           'Content-Type': 'application/json',
         }
       });
-      console.log("getAvailableChains response status:", res.status);
-      console.log("getAvailableChains response ok:", res.ok);
-      if (!res.ok) {
-        const text = await res.text();
-        console.log("Error response:", text);
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      console.log("getAvailableChains data:", data);
       return data.chains;
     } catch (error) {
       console.error("getAvailableChains error:", error);
@@ -290,6 +305,96 @@ class MiniAppClient {
     }
   }
 
+  async buyToken(chain: string, tokenAddress: string, amountInNative: number, slippage: number = 0.5): Promise<BuyResponse> {
+    try {
+      const res = await fetch(
+        `${this.backendUrl}/api/trade/buy/${this.telegramId}/${chain}`,
+        {
+          method: 'POST',
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tokenAddress,
+            amountInNative,
+            slippage
+          })
+        }
+      );
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+          telegramId: this.telegramId,
+          chain,
+          tokenAddress,
+          amountInNative
+        };
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`buyToken error for ${tokenAddress} on ${chain}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        telegramId: this.telegramId,
+        chain,
+        tokenAddress,
+        amountInNative
+      };
+    }
+  }
+
+  async sellToken(chain: string, tokenAddress: string, percentToSell: number, slippage: number = 0.5): Promise<SellResponse> {
+    try {
+      const res = await fetch(
+        `${this.backendUrl}/api/trade/sell/${this.telegramId}/${chain}`,
+        {
+          method: 'POST',
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tokenAddress,
+            percentToSell,
+            slippage
+          })
+        }
+      );
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+          telegramId: this.telegramId,
+          chain,
+          tokenAddress,
+          percentToSell
+        };
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`sellToken error for ${tokenAddress} on ${chain}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        telegramId: this.telegramId,
+        chain,
+        tokenAddress,
+        percentToSell
+      };
+    }
+  }
+
   formatBalance(balance: number, decimals: number = 2): string {
     return balance.toFixed(decimals);
   }
@@ -311,6 +416,7 @@ class MiniAppClient {
 interface SelectedToken {
   name: string;
   symbol: string;
+  address: string;
   pnlData: {
     fiveMin: string;
     oneHour: string;
@@ -323,6 +429,12 @@ interface SelectedToken {
     volume24h: string;
   };
   buyAmounts: string[];
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
 }
 
 export function MobileTrading() {
@@ -342,6 +454,118 @@ export function MobileTrading() {
   const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(null)
   const [pasteError, setPasteError] = useState("")
   const [hasValidToken, setHasValidToken] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isTrading, setIsTrading] = useState(false)
+  const [showCustomBuyInput, setShowCustomBuyInput] = useState(false)
+  const [customBuyAmount, setCustomBuyAmount] = useState("")
+
+  // Show notification
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substr(2, 9)
+    setNotifications(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }, 3000)
+  }
+
+  // Refresh data after trade
+  const refreshData = async () => {
+    if (!client) return
+    
+    try {
+      const balanceData = await client.getBalance(selectedChain)
+      if (balanceData.success) {
+        setBalance(balanceData.balance)
+      }
+
+      const positionsData = await client.getPositionsByChain(selectedChain)
+      setPositions(positionsData)
+    } catch (err) {
+      console.error("Error refreshing data:", err)
+    }
+  }
+
+  // Handle buy with preset amount
+  const handleBuyWithAmount = async (amountStr: string) => {
+    if (!client || !selectedToken || isTrading) return
+
+    // Parse amount (remove currency symbol)
+    const amount = parseFloat(amountStr.split(' ')[0])
+    
+    if (isNaN(amount) || amount <= 0) {
+      showNotification("Invalid amount", "error")
+      return
+    }
+
+    setIsTrading(true)
+    showNotification("Processing buy transaction...", "info")
+
+    try {
+      const result = await client.buyToken(
+        selectedChain,
+        selectedToken.address,
+        amount,
+        0.5 // 0.5% slippage
+      )
+
+      if (result.success) {
+        showNotification("✅ Buy transaction successful!", "success")
+        setShowTokenDetail(false)
+        setTokenInput("")
+        setSelectedToken(null)
+        setHasValidToken(false)
+        await refreshData()
+      } else {
+        showNotification(`❌ Buy failed: ${result.error}`, "error")
+      }
+    } catch (err) {
+      showNotification(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+    } finally {
+      setIsTrading(false)
+    }
+  }
+
+  // Handle custom buy amount
+  const handleCustomBuy = async () => {
+    const amount = parseFloat(customBuyAmount)
+    
+    if (isNaN(amount) || amount <= 0) {
+      showNotification("Please enter a valid amount", "error")
+      return
+    }
+
+    await handleBuyWithAmount(customBuyAmount)
+    setShowCustomBuyInput(false)
+    setCustomBuyAmount("")
+  }
+
+  // Handle sell
+  const handleSellPosition = async (position: Position, percent: number = 100) => {
+    if (!client || isTrading) return
+
+    setIsTrading(true)
+    showNotification(`Processing sell ${percent}% transaction...`, "info")
+
+    try {
+      const result = await client.sellToken(
+        position.chain,
+        position.tokenAddress,
+        percent,
+        0.5 // 0.5% slippage
+      )
+
+      if (result.success) {
+        showNotification(`✅ Sell transaction successful!`, "success")
+        await refreshData()
+      } else {
+        showNotification(`❌ Sell failed: ${result.error}`, "error")
+      }
+    } catch (err) {
+      showNotification(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+    } finally {
+      setIsTrading(false)
+    }
+  }
 
   // Initialize client and load data
   useEffect(() => {
@@ -353,17 +577,10 @@ export function MobileTrading() {
         WebApp.ready()
         console.log("✓ WebApp SDK ready")
 
-        console.log("WebApp:", WebApp)
-        console.log("initDataUnsafe:", WebApp.initDataUnsafe)
-
         const telegramId = WebApp.initDataUnsafe?.user?.id
-
-        console.log("Extracted telegramId:", telegramId)
-        console.log("Type:", typeof telegramId)
 
         if (!telegramId) {
           console.error("❌ Could not extract Telegram ID")
-          console.log("Full initDataUnsafe:", JSON.stringify(WebApp.initDataUnsafe, null, 2))
           setError("Could not get Telegram ID from SDK")
           setLoading(false)
           return
@@ -374,33 +591,23 @@ export function MobileTrading() {
         setClient(newClient)
 
         // Load chains
-        console.log("Loading chains...")
         const chainsData = await newClient.getAvailableChains()
-        console.log("✓ Chains loaded:", chainsData.length)
         setChains(chainsData)
 
         // Load user profile
-        console.log("Loading user profile...")
         const profile = await newClient.getUserProfile()
-        console.log("✓ Profile loaded:", profile.user.telegramId)
         setUserProfile(profile)
 
         // Load initial balance and positions
-        console.log("Loading balance for solana...")
         const balanceData = await newClient.getBalance("solana")
-        console.log("✓ Balance loaded:", balanceData.balance)
         if (balanceData.success) {
           setBalance(balanceData.balance)
         }
 
-        console.log("Loading positions for solana...")
         const positionsData = await newClient.getPositionsByChain("solana")
-        console.log("✓ Positions loaded:", positionsData.length)
         setPositions(positionsData)
 
-        console.log("Loading wallet address for solana...")
         const addressData = await newClient.getWalletAddress("solana")
-        console.log("✓ Wallet address loaded:", addressData.address)
         if (addressData.success) {
           setWalletAddress(addressData.address)
         }
@@ -408,7 +615,6 @@ export function MobileTrading() {
         console.log("=== INIT COMPLETE ===")
       } catch (err) {
         console.error("❌ Initialization error:", err)
-        console.error("Error stack:", err instanceof Error ? err.stack : "No stack")
         setError(`Failed to initialize: ${err instanceof Error ? err.message : "Unknown error"}`)
       } finally {
         setLoading(false)
@@ -447,6 +653,7 @@ export function MobileTrading() {
   const handleCopyAddress = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard && walletAddress) {
       navigator.clipboard.writeText(walletAddress)
+      showNotification("Address copied!", "success")
     }
   }
 
@@ -477,20 +684,17 @@ export function MobileTrading() {
 
     if (client) {
       try {
-        // Fetch token details using the input CA and selected chain
         console.log(`Fetching token details for CA: ${ca} on chain: ${selectedChain}`)
         const details = await client.getTokenDetails(selectedChain, ca)
 
         if (details.success) {
           const token = details.token
 
-          // Format changes with sign
           const formatChange = (val: number | undefined): string => {
             if (val === undefined) return "0.00%"
             return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`
           }
 
-          // Format market cap
           const formatMarketCap = (mc: number): string => {
             if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
             if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
@@ -502,11 +706,12 @@ export function MobileTrading() {
           const h24Change = token.change?.h24 ?? 0
           const h24Volume = token.volume?.h24 ?? 0
 
-          const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `10 ${nativeSymbol}`, `X ${nativeSymbol}`]
+          const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
 
           setSelectedToken({
             name: token.name,
             symbol: token.symbol,
+            address: token.address,
             pnlData: {
               fiveMin: formatChange(m5Change),
               oneHour: formatChange(h1Change),
@@ -525,7 +730,6 @@ export function MobileTrading() {
         } else {
           setHasValidToken(false)
           setError("Failed to fetch token details")
-          console.error("Token details fetch failed:", details)
         }
       } catch (err) {
         setHasValidToken(false)
@@ -556,6 +760,24 @@ export function MobileTrading() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+      {/* Notifications */}
+      <div className="fixed top-4 left-0 right-0 z-50 flex flex-col items-center gap-2 px-4">
+        {notifications.map(notification => (
+          <div
+            key={notification.id}
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+              notification.type === 'success' 
+                ? 'bg-green-500/90 text-white' 
+                : notification.type === 'error'
+                ? 'bg-red-500/90 text-white'
+                : 'bg-blue-500/90 text-white'
+            }`}
+          >
+            {notification.message}
+          </div>
+        ))}
+      </div>
+
       <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 max-w-2xl mx-auto w-full pb-40 pt-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -642,7 +864,7 @@ export function MobileTrading() {
             <div className="flex items-baseline gap-2 mb-6">
               <h2 className="text-4xl font-bold text-white">{client?.formatBalance(balance) || "0.000"}</h2>
               <span className="text-xl text-gray-400">{nativeSymbol}</span>
-              <button className="cursor-pointer">
+              <button className="cursor-pointer" onClick={refreshData}>
                 <Image
                   src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Vector%20%281%29-gWZ2CwEa51DiP49O5aKvC3WvEZ6Wpf.png"
                   alt="Refresh"
@@ -691,8 +913,12 @@ export function MobileTrading() {
                     <span className="text-sm font-semibold text-gray-300">
                       {parseFloat(position.amountHeld).toFixed(4)} {position.tokenTicker}
                     </span>
-                    <Button className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444]">
-                      Sell 100%
+                    <Button 
+                      onClick={() => handleSellPosition(position, 100)}
+                      disabled={isTrading}
+                      className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isTrading ? "Processing..." : "Sell 100%"}
                     </Button>
                   </div>
                 </div>
@@ -709,13 +935,15 @@ export function MobileTrading() {
               value={tokenInput}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Contract Address or Token"
-              className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+              disabled={isTrading}
+              className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] disabled:opacity-50"
             />
             <Button
               onClick={hasValidToken ? handleBuyClick : handlePasteClick}
-              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? 'bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold border-transparent' : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'}`}
+              disabled={isTrading}
+              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? 'bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold border-transparent' : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {hasValidToken ? "Buy" : "Paste"}
+              {isTrading ? "..." : hasValidToken ? "Buy" : "Paste"}
             </Button>
           </div>
           {pasteError && (
@@ -803,15 +1031,110 @@ export function MobileTrading() {
       <div className="fixed bottom-0 left-0 right-0 h-3 bg-black pointer-events-none z-10" />
 
       {/* Token Detail Modal */}
-      <TokenDetailModal
-        isOpen={showTokenDetail}
-        onClose={() => setShowTokenDetail(false)}
-        tokenName={selectedToken?.name || ""}
-        tokenSymbol={selectedToken?.symbol || ""}
-        pnlData={selectedToken?.pnlData || { fiveMin: "0%", oneHour: "0%", twentyFourHours: "0%" }}
-        marketData={selectedToken?.marketData || { marketCap: "$0", liquidity: "$0", price: "$0", volume24h: "$0" }}
-        buyAmounts={selectedToken?.buyAmounts || []}
-      />
+      {showTokenDetail && selectedToken && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowTokenDetail(false)}>
+          <div className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">{selectedToken.name}</h2>
+              <button onClick={() => setShowTokenDetail(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-gray-400">{selectedToken.symbol}</span>
+                <span className="text-xs px-2 py-1 rounded bg-[#1A1A1A] text-gray-300">{selectedToken.marketData.price}</span>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-[#1A1A1A] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">5m</div>
+                  <div className={`text-sm font-semibold ${selectedToken.pnlData.fiveMin.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
+                    {selectedToken.pnlData.fiveMin}
+                  </div>
+                </div>
+                <div className="bg-[#1A1A1A] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">1h</div>
+                  <div className={`text-sm font-semibold ${selectedToken.pnlData.oneHour.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
+                    {selectedToken.pnlData.oneHour}
+                  </div>
+                </div>
+                <div className="bg-[#1A1A1A] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">24h</div>
+                  <div className={`text-sm font-semibold ${selectedToken.pnlData.twentyFourHours.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
+                    {selectedToken.pnlData.twentyFourHours}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-[#1A1A1A] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Market Cap</div>
+                  <div className="text-sm font-semibold text-white">{selectedToken.marketData.marketCap}</div>
+                </div>
+                <div className="bg-[#1A1A1A] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Liquidity</div>
+                  <div className="text-sm font-semibold text-white">{selectedToken.marketData.liquidity}</div>
+                </div>
+                <div className="bg-[#1A1A1A] rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">24h Volume</div>
+                  <div className="text-sm font-semibold text-white">{selectedToken.marketData.volume24h}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-white mb-3">Quick Buy</h3>
+                {showCustomBuyInput ? (
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={customBuyAmount}
+                      onChange={(e) => setCustomBuyAmount(e.target.value)}
+                      placeholder={`Enter amount in ${nativeSymbol}`}
+                      className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                      disabled={isTrading}
+                    />
+                    <Button
+                      onClick={handleCustomBuy}
+                      disabled={isTrading || !customBuyAmount}
+                      className="bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                    >
+                      {isTrading ? "..." : "Buy"}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowCustomBuyInput(false)
+                        setCustomBuyAmount("")
+                      }}
+                      className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedToken.buyAmounts.map((amount, index) => (
+                      <Button
+                        key={index}
+                        onClick={() => {
+                          if (amount.startsWith('X')) {
+                            setShowCustomBuyInput(true)
+                          } else {
+                            handleBuyWithAmount(amount)
+                          }
+                        }}
+                        disabled={isTrading}
+                        className="bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold rounded-lg h-12 disabled:opacity-50"
+                      >
+                        {isTrading ? "Processing..." : amount.startsWith('X') ? `Custom ${nativeSymbol}` : amount}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
