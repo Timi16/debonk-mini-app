@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { TokenDetailModal } from "./token-detail-modal"
+import { X } from "lucide-react"
+import { set } from "date-fns"
 
 // Dynamically import WebApp only on client side
 let WebApp: any = null
@@ -456,6 +458,7 @@ export function MobileTrading() {
   const [hasValidToken, setHasValidToken] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isTrading, setIsTrading] = useState(false)
+  const [isTradingId, setIsTradingId] = useState<string>()
   const [showCustomBuyInput, setShowCustomBuyInput] = useState(false)
   const [customBuyAmount, setCustomBuyAmount] = useState("")
 
@@ -544,6 +547,7 @@ export function MobileTrading() {
     if (!client || isTrading) return
 
     setIsTrading(true)
+    setIsTradingId(position.id)
     showNotification(`Processing sell ${percent}% transaction...`, "info")
 
     try {
@@ -555,15 +559,16 @@ export function MobileTrading() {
       )
 
       if (result.success) {
-        showNotification(`✅ Sell transaction successful!`, "success")
+        showNotification(`Sell transaction successful!`, "success")
         await refreshData()
       } else {
-        showNotification(`❌ Sell failed: ${result.error}`, "error")
+        showNotification(`Sell failed: ${result.error}`, "error")
       }
     } catch (err) {
-      showNotification(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+      showNotification(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
     } finally {
       setIsTrading(false)
+      setIsTradingId("") 
     }
   }
 
@@ -918,7 +923,7 @@ export function MobileTrading() {
                       disabled={isTrading}
                       className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isTrading ? "Processing..." : "Sell 100%"}
+                      {isTrading && isTradingId === position.id ? "Processing..." : "Sell 100%"}
                     </Button>
                   </div>
                 </div>
