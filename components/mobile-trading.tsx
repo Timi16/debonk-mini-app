@@ -340,6 +340,7 @@ export function MobileTrading() {
   const [error, setError] = useState("")
   const [showTokenDetail, setShowTokenDetail] = useState(false)
   const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(null)
+  const [pasteError, setPasteError] = useState("")
 
   // Initialize client and load data
   useEffect(() => {
@@ -448,16 +449,18 @@ export function MobileTrading() {
     }
   }
 
-  const handlePaste = async () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard && client) {
+  const handlePasteClick = () => {
+    setPasteError("Please long-press the input field and select 'Paste' to enter the contract address.")
+  }
+
+  const handleInputChange = async (value: string) => {
+    const ca = value.trim()
+    setTokenInput(ca)
+    setPasteError("")
+
+    if (ca && client) {
       try {
-        const text = await navigator.clipboard.readText()
-        const ca = text.trim()
-        if (!ca) return
-
-        setTokenInput(ca)
-
-        // Fetch token details using the pasted CA and selected chain
+        // Fetch token details using the input CA and selected chain
         console.log(`Fetching token details for CA: ${ca} on chain: ${selectedChain}`)
         const details = await client.getTokenDetails(selectedChain, ca)
 
@@ -505,8 +508,8 @@ export function MobileTrading() {
           console.error("Token details fetch failed:", details)
         }
       } catch (err) {
-        console.error("Failed to read clipboard or fetch token:", err)
-        setError("Failed to process pasted content")
+        console.error("Failed to fetch token:", err)
+        setError("Failed to process contract address")
       }
     }
   }
@@ -683,17 +686,20 @@ export function MobileTrading() {
           <div className="relative">
             <Input
               value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Contract Address or Token"
               className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
             />
             <Button
-              onClick={handlePaste}
+              onClick={handlePasteClick}
               className="absolute right-1 top-1 bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-10 px-4 rounded-full border border-[#4A4A4A]"
             >
               Paste
             </Button>
           </div>
+          {pasteError && (
+            <p className="text-xs text-yellow-400 mt-1 text-center">{pasteError}</p>
+          )}
         </div>
         <div className="flex items-center justify-between px-6 py-3 pb-[calc(env(safe-area-inset-bottom))] gap-2 max-w-2xl mx-auto">
           <button
