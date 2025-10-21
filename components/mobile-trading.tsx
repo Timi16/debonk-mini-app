@@ -472,6 +472,9 @@ export function MobileTrading() {
       return
     }
 
+    const currentChain = chains.find(c => c.key === selectedChain)
+    const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
+
     if (client) {
       try {
         // Fetch token details using the input CA and selected chain
@@ -499,6 +502,8 @@ export function MobileTrading() {
           const h24Change = token.change?.h24 ?? 0
           const h24Volume = token.volume?.h24 ?? 0
 
+          const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `10 ${nativeSymbol}`, `X ${nativeSymbol}`]
+
           setSelectedToken({
             name: token.name,
             symbol: token.symbol,
@@ -513,7 +518,7 @@ export function MobileTrading() {
               price: `$${token.priceUsd.toFixed(4)}`,
               volume24h: `$${h24Volume.toLocaleString()}`,
             },
-            buyAmounts: ["0.1 Sol", "0.5 Sol", "10 Sol", "X Sol"], // Hardcoded for now
+            buyAmounts,
           })
 
           setHasValidToken(true)
