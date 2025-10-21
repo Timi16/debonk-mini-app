@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import dynamic from "next/dynamic"
+import { TokenDetailModal } from "./token-detail-modal"
 
 // Dynamically import WebApp only on client side
 let WebApp: any = null
@@ -77,6 +78,37 @@ interface WalletAddress {
   chain: string;
   address: string;
   error?: string;
+}
+
+interface TokenDetails {
+  success: boolean;
+  chain: string;
+  contractAddress: string;
+  token: {
+    name: string;
+    symbol: string;
+    address: string;
+    priceUsd: number;
+    priceNative: number;
+    marketCap: number;
+    liquidityInUsd: number;
+    twitterUrl?: string;
+    websiteUrl?: string;
+    telegramUrl?: string;
+    volume?: {
+      m5: number;
+      h1: number;
+      h24: number;
+      d7?: number;
+    };
+    change?: {
+      m5?: number;
+      h1: number;
+      h24: number;
+      d7?: number;
+    };
+    source?: string;
+  };
 }
 
 class MiniAppClient {
@@ -239,6 +271,25 @@ class MiniAppClient {
     }
   }
 
+  async getTokenDetails(chain: string, contractAddress: string): Promise<TokenDetails> {
+    try {
+      const res = await fetch(
+        `${this.backendUrl}/api/token/${chain}/${contractAddress}`,
+        {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (error) {
+      console.error(`getTokenDetails error for ${contractAddress} on ${chain}:`, error);
+      throw error;
+    }
+  }
+
   formatBalance(balance: number, decimals: number = 2): string {
     return balance.toFixed(decimals);
   }
@@ -257,6 +308,23 @@ class MiniAppClient {
   }
 }
 
+interface SelectedToken {
+  name: string;
+  symbol: string;
+  pnlData: {
+    fiveMin: string;
+    oneHour: string;
+    twentyFourHours: string;
+  };
+  marketData: {
+    marketCap: string;
+    liquidity: string;
+    price: string;
+    volume24h: string;
+  };
+  buyAmounts: string[];
+}
+
 export function MobileTrading() {
   const [activeTab, setActiveTab] = useState("home")
   const [mode, setMode] = useState<"demo" | "live">("demo")
@@ -270,25 +338,27 @@ export function MobileTrading() {
   const [positions, setPositions] = useState<Position[]>([])
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [error, setError] = useState("")
+  const [showTokenDetail, setShowTokenDetail] = useState(false)
+  const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(null)
 
   // Initialize client and load data
   useEffect(() => {
     const initializeMiniApp = async () => {
       try {
         console.log("=== TELEGRAM MINI APP INIT WITH SDK ===")
-        
+
         // Initialize the WebApp SDK
         WebApp.ready()
         console.log("✓ WebApp SDK ready")
-        
+
         console.log("WebApp:", WebApp)
         console.log("initDataUnsafe:", WebApp.initDataUnsafe)
-        
+
         const telegramId = WebApp.initDataUnsafe?.user?.id
-        
+
         console.log("Extracted telegramId:", telegramId)
         console.log("Type:", typeof telegramId)
-        
+
         if (!telegramId) {
           console.error("❌ Could not extract Telegram ID")
           console.log("Full initDataUnsafe:", JSON.stringify(WebApp.initDataUnsafe, null, 2))
@@ -378,13 +448,66 @@ export function MobileTrading() {
     }
   }
 
-  const handlePaste = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.readText().then(text => {
-        setTokenInput(text)
-      }).catch(err => {
-        console.error("Failed to read clipboard:", err)
-      })
+  const handlePaste = async () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard && client) {
+      try {
+        const text = await navigator.clipboard.readText()
+        const ca = text.trim()
+        if (!ca) return
+
+        setTokenInput(ca)
+
+        // Fetch token details using the pasted CA and selected chain
+        console.log(`Fetching token details for CA: ${ca} on chain: ${selectedChain}`)
+        const details = await client.getTokenDetails(selectedChain, ca)
+
+        if (details.success) {
+          const token = details.token
+
+          // Format changes with sign
+          const formatChange = (val: number | undefined): string => {
+            if (val === undefined) return "0.00%"
+            return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`
+          }
+
+          // Format market cap
+          const formatMarketCap = (mc: number): string => {
+            if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+            if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+            return `$${mc.toLocaleString()}`
+          }
+
+          const m5Change = token.change?.m5 ?? 0
+          const h1Change = token.change?.h1 ?? 0
+          const h24Change = token.change?.h24 ?? 0
+          const h24Volume = token.volume?.h24 ?? 0
+
+          setSelectedToken({
+            name: token.name,
+            symbol: token.symbol,
+            pnlData: {
+              fiveMin: formatChange(m5Change),
+              oneHour: formatChange(h1Change),
+              twentyFourHours: formatChange(h24Change),
+            },
+            marketData: {
+              marketCap: formatMarketCap(token.marketCap),
+              liquidity: `$${token.liquidityInUsd.toLocaleString()}`,
+              price: `$${token.priceUsd.toFixed(4)}`,
+              volume24h: `$${h24Volume.toLocaleString()}`,
+            },
+            buyAmounts: ["0.1 Sol", "0.5 Sol", "10 Sol", "X Sol"], // Hardcoded for now
+          })
+
+          setShowTokenDetail(true)
+        } else {
+          setError("Failed to fetch token details")
+          console.error("Token details fetch failed:", details)
+        }
+      } catch (err) {
+        console.error("Failed to read clipboard or fetch token:", err)
+        setError("Failed to process pasted content")
+      }
     }
   }
 
@@ -479,8 +602,8 @@ export function MobileTrading() {
                   />
                 </button>
               </div>
-              <select 
-                value={selectedChain} 
+              <select
+                value={selectedChain}
                 onChange={(e) => setSelectedChain(e.target.value)}
                 className="bg-[#1A1A1A] text-white text-xs border border-[#2A2A2A] rounded px-2 py-1"
               >
@@ -554,7 +677,7 @@ export function MobileTrading() {
           )}
         </div>
       </div>
-      
+
       <div className="fixed bottom-3 left-0 right-0 bg-black border-t border-[#1A1A1A] shadow-[0_-8px_16px_rgba(0,0,0,0.35)] z-20 pb-5">
         <div className="px-6 pt-4 max-w-2xl mx-auto">
           <div className="relative">
@@ -564,7 +687,7 @@ export function MobileTrading() {
               placeholder="Contract Address or Token"
               className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
             />
-            <Button 
+            <Button
               onClick={handlePaste}
               className="absolute right-1 top-1 bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-10 px-4 rounded-full border border-[#4A4A4A]"
             >
@@ -651,6 +774,17 @@ export function MobileTrading() {
         </div>
       </div>
       <div className="fixed bottom-0 left-0 right-0 h-3 bg-black pointer-events-none z-10" />
+
+      {/* Token Detail Modal */}
+      <TokenDetailModal
+        isOpen={showTokenDetail}
+        onClose={() => setShowTokenDetail(false)}
+        tokenName={selectedToken?.name || ""}
+        tokenSymbol={selectedToken?.symbol || ""}
+        pnlData={selectedToken?.pnlData || { fiveMin: "0%", oneHour: "0%", twentyFourHours: "0%" }}
+        marketData={selectedToken?.marketData || { marketCap: "$0", liquidity: "$0", price: "$0", volume24h: "$0" }}
+        buyAmounts={selectedToken?.buyAmounts || []}
+      />
     </div>
   )
 }
