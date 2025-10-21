@@ -341,6 +341,7 @@ export function MobileTrading() {
   const [showTokenDetail, setShowTokenDetail] = useState(false)
   const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(null)
   const [pasteError, setPasteError] = useState("")
+  const [hasValidToken, setHasValidToken] = useState(false)
 
   // Initialize client and load data
   useEffect(() => {
@@ -453,12 +454,25 @@ export function MobileTrading() {
     setPasteError("Please long-press the input field and select 'Paste' to enter the contract address.")
   }
 
+  const handleBuyClick = () => {
+    if (selectedToken) {
+      setShowTokenDetail(true)
+    }
+  }
+
   const handleInputChange = async (value: string) => {
     const ca = value.trim()
     setTokenInput(ca)
     setPasteError("")
 
-    if (ca && client) {
+    if (!ca) {
+      setHasValidToken(false)
+      setSelectedToken(null)
+      setShowTokenDetail(false)
+      return
+    }
+
+    if (client) {
       try {
         // Fetch token details using the input CA and selected chain
         console.log(`Fetching token details for CA: ${ca} on chain: ${selectedChain}`)
@@ -502,12 +516,14 @@ export function MobileTrading() {
             buyAmounts: ["0.1 Sol", "0.5 Sol", "10 Sol", "X Sol"], // Hardcoded for now
           })
 
-          setShowTokenDetail(true)
+          setHasValidToken(true)
         } else {
+          setHasValidToken(false)
           setError("Failed to fetch token details")
           console.error("Token details fetch failed:", details)
         }
       } catch (err) {
+        setHasValidToken(false)
         console.error("Failed to fetch token:", err)
         setError("Failed to process contract address")
       }
@@ -691,10 +707,10 @@ export function MobileTrading() {
               className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
             />
             <Button
-              onClick={handlePasteClick}
-              className="absolute right-1 top-1 bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-10 px-4 rounded-full border border-[#4A4A4A]"
+              onClick={hasValidToken ? handleBuyClick : handlePasteClick}
+              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? 'bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold border-transparent' : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'}`}
             >
-              Paste
+              {hasValidToken ? "Buy" : "Paste"}
             </Button>
           </div>
           {pasteError && (
