@@ -1189,9 +1189,7 @@ export default function MobileTrading() {
               return (
                 <div
                   key={position.id}
-                  className={`border rounded-2xl p-4 transition-colors ${
-                    isPositive ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"
-                  }`}
+                  className={`border rounded-2xl p-4 transition-colors bg-[#1A1A1A] border-[#2A2A2A]`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div
