@@ -12,7 +12,7 @@ if (typeof window !== "undefined") {
   WebApp = require("@twa-dev/sdk").default
 }
 
-// MiniAppClient class
+// MiniAppClient classfetchNativePrice
 interface Chain {
   key: string;
   name: string;
@@ -453,6 +453,7 @@ export default function MobileTrading() {
   const [chains, setChains] = useState<Chain[]>([])
   const [selectedChain, setSelectedChain] = useState("solana")
   const [balance, setBalance] = useState(0)
+  const [nativePrice, setNativePrice] = useState(0)
   const [walletAddress, setWalletAddress] = useState("")
   const [positions, setPositions] = useState<PositionWithPrice[]>([])
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
@@ -479,6 +480,51 @@ export default function MobileTrading() {
     }, 3000)
   }
 
+  // Fetch native token price from CoinGecko
+  const fetchNativePrice = async (chainKey: string) => {
+    if (!process.env.NEXT_PUBLIC_CG_API_KEY) {
+      console.error("CoinGecko API key not set in NEXT_PUBLIC_CG_API_KEY");
+      // Fallback to a default price (e.g., ~$150 for SOL as of recent data)
+      setNativePrice(150);
+      return;
+    }
+
+    try {
+      const currentChain = chains.find(c => c.key === chainKey);
+      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || 'SOL';
+      
+      // Map common native token symbols to CoinGecko IDs
+      const coinGeckoIds: { [key: string]: string } = {
+        SOL: 'solana',
+        ETH: 'ethereum',
+        BNB: 'binancecoin',
+        // Add more as needed for other chains
+      };
+
+      const id = coinGeckoIds[symbol] || symbol.toLowerCase();
+      
+      const url = `https://pro-api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&x_cg_demo_api_key=${process.env.NEXT_PUBLIC_CG_API_KEY}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const price = data[id]?.usd;
+      
+      if (price) {
+        setNativePrice(price);
+      } else {
+        console.error(`Price not found for ${id}`);
+        setNativePrice(150); // Fallback
+      }
+    } catch (err) {
+      console.error("Error fetching native token price:", err);
+      setNativePrice(150); // Fallback to approximate SOL price
+    }
+  };
+
   // Refresh data after trade and enrich with prices
   const refreshData = async () => {
     if (!client) return
@@ -488,6 +534,9 @@ export default function MobileTrading() {
       if (balanceData.success) {
         setBalance(balanceData.balance)
       }
+
+      // Fetch updated native price
+      await fetchNativePrice(selectedChain);
 
       const positionsData = await client.getPositionsByChain(selectedChain)
 
@@ -549,7 +598,7 @@ export default function MobileTrading() {
       )
 
       if (result.success) {
-        showNotification("✅ Buy transaction successful!", "success")
+        showNotification(" Buy transaction successful!", "success")
         setShowTokenDetail(false)
         setTokenInput("")
         setSelectedToken(null)
@@ -558,10 +607,10 @@ export default function MobileTrading() {
         setCustomBuyAmount("")
         await refreshData()
       } else {
-        showNotification(`❌ Buy failed: ${result.error}`, "error")
+        showNotification(`Buy failed: ${result.error}`, "error")
       }
     } catch (err) {
-      showNotification(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+      showNotification(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
     } finally {
       setIsTrading(false)
     }
@@ -621,10 +670,10 @@ export default function MobileTrading() {
         setCustomSellAmount("")
         await refreshData()
       } else {
-        showNotification(`❌ Sell failed: ${result.error}`, "error")
+        showNotification(`Sell failed: ${result.error}`, "error")
       }
     } catch (err) {
-      showNotification(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+      showNotification(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
     } finally {
       setIsTrading(false)
       setIsTradingId("")
@@ -719,7 +768,7 @@ export default function MobileTrading() {
         const telegramId = WebApp.initDataUnsafe?.user?.id
 
         if (!telegramId) {
-          console.error("❌ Could not extract Telegram ID")
+          console.error("Could not extract Telegram ID")
           setError("Could not get Telegram ID from SDK")
           setLoading(false)
           return
@@ -742,6 +791,9 @@ export default function MobileTrading() {
         if (balanceData.success) {
           setBalance(balanceData.balance)
         }
+
+        // Fetch initial native price
+        await fetchNativePrice("solana");
 
         const positionsData = await newClient.getPositionsByChain("solana")
 
@@ -782,7 +834,7 @@ export default function MobileTrading() {
 
         console.log("=== INIT COMPLETE ===")
       } catch (err) {
-        console.error("❌ Initialization error:", err)
+        console.error("Initialization error:", err)
         setError(`Failed to initialize: ${err instanceof Error ? err.message : "Unknown error"}`)
       } finally {
         setLoading(false)
@@ -803,6 +855,9 @@ export default function MobileTrading() {
         if (balanceData.success) {
           setBalance(balanceData.balance)
         }
+
+        // Fetch native price for the new chain
+        await fetchNativePrice(selectedChain);
 
         const positionsData = await client.getPositionsByChain(selectedChain)
 
@@ -943,6 +998,7 @@ export default function MobileTrading() {
 
   const currentChain = chains.find(c => c.key === selectedChain)
   const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
+  const usdBalance = balance * nativePrice;
 
   if (loading) {
     return (
@@ -1061,7 +1117,7 @@ export default function MobileTrading() {
                 ))}
               </select>
             </div>
-            <p className="text-xs text-gray-400 mb-4">Balance ~ ${(balance * 50).toFixed(2)}</p>
+            <p className="text-xs text-gray-400 mb-4">Balance ~ ${usdBalance.toFixed(2)}</p>
             <div className="flex items-baseline gap-2 mb-6">
               <h2 className="text-4xl font-bold text-white">{client?.formatBalance(balance) || "0.000"}</h2>
               <span className="text-xl text-gray-400">{nativeSymbol}</span>
