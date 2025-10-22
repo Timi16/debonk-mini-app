@@ -481,47 +481,66 @@ export default function MobileTrading() {
   }
 
   // Fetch native token price from CoinGecko
-  const fetchNativePrice = async (chainKey: string) => {
-    if (!process.env.NEXT_PUBLIC_CG_API_KEY) {
-      console.error("CoinGecko API key not set in NEXT_PUBLIC_CG_API_KEY");
-      // Fallback to a default price (e.g., ~$150 for SOL as of recent data)
-      setNativePrice(150);
-      return;
-    }
+  // Replace your fetchNativePrice with this (no other changes needed)
+  const COINGECKO_SIMPLE_PRICE = "https://api.coingecko.com/api/v3/simple/price";
 
+  const fetchNativePrice = async (chainKey: string) => {
     try {
       const currentChain = chains.find(c => c.key === chainKey);
-      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || 'SOL';
-      
-      // Map common native token symbols to CoinGecko IDs
-      const coinGeckoIds: { [key: string]: string } = {
-        SOL: 'solana',
-        ETH: 'ethereum',
-        BNB: 'binancecoin',
-        // Add more as needed for other chains
+      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || "SOL";
+
+      // Map symbols to CoinGecko IDs (keep it tiny here; extend as needed)
+      const COINGECKO_ID_MAP: Record<string, string> = {
+        ETH: "ethereum",
+        BNB: "binancecoin",
+        MATIC: "matic-network",
+        AVAX: "avalanche-2",
+        FTM: "fantom",
+        SOL: "solana",
+        "0G": "zero-gravity", // adjust if different on CG
       };
 
-      const id = coinGeckoIds[symbol] || symbol.toLowerCase();
-      
-      const url = `https://pro-api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&x_cg_demo_api_key=${process.env.NEXT_PUBLIC_CG_API_KEY}`;
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const id = COINGECKO_ID_MAP[symbol];
+      if (!id) {
+        console.error(`No CoinGecko ID mapping found for ${symbol}`);
+        setNativePrice(150);
+        return;
       }
-      
-      const data = await response.json();
-      const price = data[id]?.usd;
-      
-      if (price) {
-        setNativePrice(price);
-      } else {
-        console.error(`Price not found for ${id}`);
-        setNativePrice(150); // Fallback
+
+      const params = new URLSearchParams({
+        ids: id,
+        vs_currencies: "usd",
+      });
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      // Optional: use demo (free) header if you have a key
+      if (process.env.NEXT_PUBLIC_CG_API_KEY) {
+        headers["x-cg-demo-api-key"] = process.env.NEXT_PUBLIC_CG_API_KEY;
       }
+
+      const res = await fetch(`${COINGECKO_SIMPLE_PRICE}?${params.toString()}`, {
+        headers,
+        // avoid cached/stale responses & some edge CORS caches
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`CoinGecko request failed (${res.status}): ${body}`);
+      }
+
+      const data = await res.json();
+      const price = data?.[id]?.usd;
+
+      if (typeof price !== "number") {
+        throw new Error(`Invalid response from CoinGecko: missing ${id}.usd`);
+      }
+
+      setNativePrice(price);
     } catch (err) {
       console.error("Error fetching native token price:", err);
-      setNativePrice(150); // Fallback to approximate SOL price
+      // Safe fallback
+      setNativePrice(150);
     }
   };
 
@@ -1024,10 +1043,10 @@ export default function MobileTrading() {
           <div
             key={notification.id}
             className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === 'success'
-                ? 'bg-green-500/90 text-white'
-                : notification.type === 'error'
-                  ? 'bg-red-500/90 text-white'
-                  : 'bg-blue-500/90 text-white'
+              ? 'bg-green-500/90 text-white'
+              : notification.type === 'error'
+                ? 'bg-red-500/90 text-white'
+                : 'bg-blue-500/90 text-white'
               }`}
           >
             {notification.message}
