@@ -1337,7 +1337,12 @@ export default function MobileTrading() {
       {showTokenDetail && selectedToken && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
-          onClick={() => setShowTokenDetail(false)}
+          onClick={(e) => {
+            // Only close if clicking on the backdrop, not the modal content
+            if (e.target === e.currentTarget) {
+              // Don't close - keep token visible
+            }
+          }}
         >
           <div
             className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up max-h-[85vh] overflow-y-auto"
@@ -1364,7 +1369,10 @@ export default function MobileTrading() {
                 </button>
               </div>
               <button
-                onClick={() => setShowTokenDetail(false)}
+                onClick={() => {
+                  // Keep the token selected even after closing modal
+                  setShowTokenDetail(false)
+                }}
                 className="text-gray-400 hover:text-white text-2xl leading-none"
               >
                 ✕
@@ -1379,7 +1387,7 @@ export default function MobileTrading() {
                     : "text-green-400 font-semibold"
                 }
               >
-                {selectedToken.pnlData.fiveMin}
+                5m: {selectedToken.pnlData.fiveMin}
               </span>
               <span className="text-gray-500">|</span>
               <span
@@ -1389,7 +1397,7 @@ export default function MobileTrading() {
                     : "text-green-400 font-semibold"
                 }
               >
-                {selectedToken.pnlData.oneHour}
+                1hr: {selectedToken.pnlData.oneHour}
               </span>
               <span className="text-gray-500">|</span>
               <span
@@ -1399,7 +1407,7 @@ export default function MobileTrading() {
                     : "text-green-400 font-semibold"
                 }
               >
-                {selectedToken.pnlData.twentyFourHours}
+                24hr: {selectedToken.pnlData.twentyFourHours}
               </span>
             </div>
 
