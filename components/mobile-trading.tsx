@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 
+
 // Dynamically import WebApp only on client side
 let WebApp: any = null
 if (typeof window !== "undefined") {
@@ -13,153 +14,153 @@ if (typeof window !== "undefined") {
 
 // MiniAppClient classfetchNativePrice
 interface Chain {
-  key: string
-  name: string
-  chainId: string | number
+  key: string;
+  name: string;
+  chainId: string | number;
   nativeToken: {
-    name: string
-    symbol: string
-    decimals: number
-  }
-  rpcUrl: string
-  explorerUrl: string
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrl: string;
+  explorerUrl: string;
 }
 
 interface Balance {
-  success: boolean
-  telegramId: string
-  chain: string
-  balance: number
-  decimals: number
-  raw: string
-  type: "native" | "token"
-  error?: string
+  success: boolean;
+  telegramId: string;
+  chain: string;
+  balance: number;
+  decimals: number;
+  raw: string;
+  type: "native" | "token";
+  error?: string;
 }
 
 interface Position {
-  id: string
-  tokenAddress: string
-  tokenTicker: string
-  amountHeld: string
-  avgBuyPrice: string
-  chain: string
-  walletId: string
-  isSimulation: boolean
-  competitionId: string | null
-  teamId: number | null
-  createdAt: string
-  updatedAt: string
+  id: string;
+  tokenAddress: string;
+  tokenTicker: string;
+  amountHeld: string;
+  avgBuyPrice: string;
+  chain: string;
+  walletId: string;
+  isSimulation: boolean;
+  competitionId: string | null;
+  teamId: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface PositionWithPrice extends Position {
-  currentPrice?: number
-  marketCap?: string
-  priceChange24h?: number
+  currentPrice?: number;
+  marketCap?: string;
+  priceChange24h?: number;
 }
 
 interface UserProfile {
-  success: boolean
+  success: boolean;
   user: {
-    id: number
-    telegramId: string
-    referralProfit: number
-    referralCountDirect: number
-    referralCountIndirect: number
-    simulationBalance: string
-    activeCompetitionId: string | null
-    createdAt: string
-    updatedAt: string
-  }
+    id: number;
+    telegramId: string;
+    referralProfit: number;
+    referralCountDirect: number;
+    referralCountIndirect: number;
+    simulationBalance: string;
+    activeCompetitionId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
   stats: {
-    positionsCount: number
-    transactionsCount: number
-  }
+    positionsCount: number;
+    transactionsCount: number;
+  };
 }
 
 interface WalletAddress {
-  success: boolean
-  telegramId: string
-  chain: string
-  address: string
-  error?: string
+  success: boolean;
+  telegramId: string;
+  chain: string;
+  address: string;
+  error?: string;
 }
 
 interface TokenDetails {
-  success: boolean
-  chain: string
-  contractAddress: string
+  success: boolean;
+  chain: string;
+  contractAddress: string;
   token: {
-    name: string
-    symbol: string
-    address: string
-    priceUsd: number
-    priceNative: number
-    marketCap: number
-    liquidityInUsd: number
-    twitterUrl?: string
-    websiteUrl?: string
-    telegramUrl?: string
+    name: string;
+    symbol: string;
+    address: string;
+    priceUsd: number;
+    priceNative: number;
+    marketCap: number;
+    liquidityInUsd: number;
+    twitterUrl?: string;
+    websiteUrl?: string;
+    telegramUrl?: string;
     volume?: {
-      m5: number
-      h1: number
-      h24: number
-      d7?: number
-    }
+      m5: number;
+      h1: number;
+      h24: number;
+      d7?: number;
+    };
     change?: {
-      m5?: number
-      h1: number
-      h24: number
-      d7?: number
-    }
-    source?: string
-  }
+      m5?: number;
+      h1: number;
+      h24: number;
+      d7?: number;
+    };
+    source?: string;
+  };
 }
 
 interface BuyResponse {
-  success: boolean
-  telegramId: string
-  chain: string
-  tokenAddress: string
-  amountInNative: number
-  transactionHash?: string
-  message?: string
-  error?: string
+  success: boolean;
+  telegramId: string;
+  chain: string;
+  tokenAddress: string;
+  amountInNative: number;
+  transactionHash?: string;
+  message?: string;
+  error?: string;
 }
 
 interface SellResponse {
-  success: boolean
-  telegramId: string
-  chain: string
-  tokenAddress: string
-  percentToSell: number
-  transactionHash?: string
-  amountSold?: number
-  message?: string
-  error?: string
+  success: boolean;
+  telegramId: string;
+  chain: string;
+  tokenAddress: string;
+  percentToSell: number;
+  transactionHash?: string;
+  amountSold?: number;
+  message?: string;
+  error?: string;
 }
 
 class MiniAppClient {
-  private telegramId: string
-  private backendUrl: string
+  private telegramId: string;
+  private backendUrl: string;
 
-  constructor(telegramId: string, backendUrl = "https://exanthematic-anneliese-friskingly.ngrok-free.dev") {
-    this.telegramId = telegramId
-    this.backendUrl = backendUrl
+  constructor(telegramId: string, backendUrl: string = "https://exanthematic-anneliese-friskingly.ngrok-free.dev") {
+    this.telegramId = telegramId;
+    this.backendUrl = backendUrl;
   }
 
   async getUserProfile(): Promise<UserProfile> {
     try {
       const res = await fetch(`${this.backendUrl}/api/user/${this.telegramId}`, {
         headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return await res.json()
+          'ngrok-skip-browser-warning': 'true',
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     } catch (error) {
-      console.error("getUserProfile error:", error)
-      throw error
+      console.error("getUserProfile error:", error);
+      throw error;
     }
   }
 
@@ -167,16 +168,16 @@ class MiniAppClient {
     try {
       const res = await fetch(`${this.backendUrl}/api/chains`, {
         headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      return data.chains
+          'ngrok-skip-browser-warning': 'true',
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.chains;
     } catch (error) {
-      console.error("getAvailableChains error:", error)
-      throw error
+      console.error("getAvailableChains error:", error);
+      throw error;
     }
   }
 
@@ -184,31 +185,34 @@ class MiniAppClient {
     try {
       const res = await fetch(`${this.backendUrl}/api/balance/${this.telegramId}/${chain}`, {
         headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return await res.json()
+          'ngrok-skip-browser-warning': 'true',
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     } catch (error) {
-      console.error(`getBalance error for ${chain}:`, error)
-      throw error
+      console.error(`getBalance error for ${chain}:`, error);
+      throw error;
     }
   }
 
   async getTokenBalance(chain: string, tokenAddress: string): Promise<Balance> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/balance/${this.telegramId}/${chain}/${tokenAddress}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return await res.json()
+      const res = await fetch(
+        `${this.backendUrl}/api/balance/${this.telegramId}/${chain}/${tokenAddress}`,
+        {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     } catch (error) {
-      console.error(`getTokenBalance error for ${tokenAddress} on ${chain}:`, error)
-      throw error
+      console.error(`getTokenBalance error for ${tokenAddress} on ${chain}:`, error);
+      throw error;
     }
   }
 
@@ -216,15 +220,15 @@ class MiniAppClient {
     try {
       const res = await fetch(`${this.backendUrl}/api/wallet/${this.telegramId}/${chain}`, {
         headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return await res.json()
+          'ngrok-skip-browser-warning': 'true',
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     } catch (error) {
-      console.error(`getWalletAddress error for ${chain}:`, error)
-      throw error
+      console.error(`getWalletAddress error for ${chain}:`, error);
+      throw error;
     }
   }
 
@@ -232,88 +236,100 @@ class MiniAppClient {
     try {
       const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}`, {
         headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      return data.positions
+          'ngrok-skip-browser-warning': 'true',
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.positions;
     } catch (error) {
-      console.error("getAllPositions error:", error)
-      throw error
+      console.error("getAllPositions error:", error);
+      throw error;
     }
   }
 
   async getPositionsByChain(chain: string): Promise<Position[]> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}/chain/${chain}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      return data.positions
+      const res = await fetch(
+        `${this.backendUrl}/api/positions/${this.telegramId}/chain/${chain}`,
+        {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.positions;
     } catch (error) {
-      console.error(`getPositionsByChain error for ${chain}:`, error)
-      throw error
+      console.error(`getPositionsByChain error for ${chain}:`, error);
+      throw error;
     }
   }
 
   async getActiveCompetitionPositions(): Promise<Position[]> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}/active-competition`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
+      const res = await fetch(
+        `${this.backendUrl}/api/positions/${this.telegramId}/active-competition`,
+        {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          }
+        }
+      );
       if (!res.ok) {
-        if (res.status === 404) return []
-        throw new Error(`HTTP ${res.status}`)
+        if (res.status === 404) return [];
+        throw new Error(`HTTP ${res.status}`);
       }
-      const data = await res.json()
-      return data.positions
+      const data = await res.json();
+      return data.positions;
     } catch (error) {
-      console.error("getActiveCompetitionPositions error:", error)
-      throw error
+      console.error("getActiveCompetitionPositions error:", error);
+      throw error;
     }
   }
 
   async getTokenDetails(chain: string, contractAddress: string): Promise<TokenDetails> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/token/${chain}/${contractAddress}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return await res.json()
+      const res = await fetch(
+        `${this.backendUrl}/api/token/${chain}/${contractAddress}`,
+        {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     } catch (error) {
-      console.error(`getTokenDetails error for ${contractAddress} on ${chain}:`, error)
-      throw error
+      console.error(`getTokenDetails error for ${contractAddress} on ${chain}:`, error);
+      throw error;
     }
   }
 
-  async buyToken(chain: string, tokenAddress: string, amountInNative: number, slippage = 0.5): Promise<BuyResponse> {
+  async buyToken(chain: string, tokenAddress: string, amountInNative: number, slippage: number = 0.5): Promise<BuyResponse> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/trade/buy/${this.telegramId}/${chain}`, {
-        method: "POST",
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tokenAddress,
-          amountInNative,
-          slippage,
-        }),
-      })
+      const res = await fetch(
+        `${this.backendUrl}/api/trade/buy/${this.telegramId}/${chain}`,
+        {
+          method: 'POST',
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tokenAddress,
+            amountInNative,
+            slippage
+          })
+        }
+      );
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!res.ok) {
         return {
@@ -322,40 +338,43 @@ class MiniAppClient {
           telegramId: this.telegramId,
           chain,
           tokenAddress,
-          amountInNative,
-        }
+          amountInNative
+        };
       }
 
-      return data
+      return data;
     } catch (error) {
-      console.error(`buyToken error for ${tokenAddress} on ${chain}:`, error)
+      console.error(`buyToken error for ${tokenAddress} on ${chain}:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         telegramId: this.telegramId,
         chain,
         tokenAddress,
-        amountInNative,
-      }
+        amountInNative
+      };
     }
   }
 
-  async sellToken(chain: string, tokenAddress: string, percentToSell: number, slippage = 0.5): Promise<SellResponse> {
+  async sellToken(chain: string, tokenAddress: string, percentToSell: number, slippage: number = 0.5): Promise<SellResponse> {
     try {
-      const res = await fetch(`${this.backendUrl}/api/trade/sell/${this.telegramId}/${chain}`, {
-        method: "POST",
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tokenAddress,
-          percentToSell,
-          slippage,
-        }),
-      })
+      const res = await fetch(
+        `${this.backendUrl}/api/trade/sell/${this.telegramId}/${chain}`,
+        {
+          method: 'POST',
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tokenAddress,
+            percentToSell,
+            slippage
+          })
+        }
+      );
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!res.ok) {
         return {
@@ -364,68 +383,65 @@ class MiniAppClient {
           telegramId: this.telegramId,
           chain,
           tokenAddress,
-          percentToSell,
-        }
+          percentToSell
+        };
       }
 
-      return data
+      return data;
     } catch (error) {
-      console.error(`sellToken error for ${tokenAddress} on ${chain}:`, error)
+      console.error(`sellToken error for ${tokenAddress} on ${chain}:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         telegramId: this.telegramId,
         chain,
         tokenAddress,
-        percentToSell,
-      }
+        percentToSell
+      };
     }
   }
 
-  formatBalance(balance: number, decimals = 2): string {
-    return balance.toFixed(decimals)
+  formatBalance(balance: number, decimals: number = 2): string {
+    return balance.toFixed(decimals);
   }
 
-  calculatePositionPnL(
-    position: Position,
-    currentPrice: number,
-  ): {
-    profitLoss: number
-    profitLossPercent: number
+  calculatePositionPnL(position: Position, currentPrice: number): {
+    profitLoss: number;
+    profitLossPercent: number;
   } {
-    const avgBuyPrice = Number.parseFloat(position.avgBuyPrice)
-    const amountHeld = Number.parseFloat(position.amountHeld)
+    const avgBuyPrice = parseFloat(position.avgBuyPrice);
+    const amountHeld = parseFloat(position.amountHeld);
 
-    const profitLoss = (currentPrice - avgBuyPrice) * amountHeld
-    const profitLossPercent = ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100
+    const profitLoss = (currentPrice - avgBuyPrice) * amountHeld;
+    const profitLossPercent = ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
 
-    return { profitLoss, profitLossPercent }
+    return { profitLoss, profitLossPercent };
   }
 }
 
 interface SelectedToken {
-  name: string
-  symbol: string
-  address: string
+  name: string;
+  symbol: string;
+  address: string;
   pnlData: {
-    fiveMin: string
-    oneHour: string
-    twentyFourHours: string
-  }
+    fiveMin: string;
+    oneHour: string;
+    twentyFourHours: string;
+  };
   marketData: {
-    marketCap: string
-    liquidity: string
-    price: string
-    volume24h: string
-  }
-  buyAmounts: string[]
-  sellAmounts: string[]
+    marketCap: string;
+    liquidity: string;
+    price: string;
+    volume24h: string;
+  };
+  buyAmounts: string[];
+  sellAmounts: string[];
 }
 
 interface Notification {
-  id: string
-  message: string
-  type: "success" | "error" | "info"
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
 }
 
 export default function MobileTrading() {
@@ -456,22 +472,22 @@ export default function MobileTrading() {
   const [customSellAmount, setCustomSellAmount] = useState("")
 
   // Show notification
-  const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9)
-    setNotifications((prev) => [...prev, { id, message, type }])
+    setNotifications(prev => [...prev, { id, message, type }])
     setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id))
+      setNotifications(prev => prev.filter(n => n.id !== id))
     }, 3000)
   }
 
   // Fetch native token price from CoinGecko
   // Replace your fetchNativePrice with this (no other changes needed)
-  const COINGECKO_SIMPLE_PRICE = "https://api.coingecko.com/api/v3/simple/price"
+  const COINGECKO_SIMPLE_PRICE = "https://api.coingecko.com/api/v3/simple/price";
 
   const fetchNativePrice = async (chainKey: string) => {
     try {
-      const currentChain = chains.find((c) => c.key === chainKey)
-      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || "SOL"
+      const currentChain = chains.find(c => c.key === chainKey);
+      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || "SOL";
 
       // Map symbols to CoinGecko IDs (keep it tiny here; extend as needed)
       const COINGECKO_ID_MAP: Record<string, string> = {
@@ -482,51 +498,51 @@ export default function MobileTrading() {
         FTM: "fantom",
         SOL: "solana",
         "0G": "zero-gravity", // adjust if different on CG
-      }
+      };
 
-      const id = COINGECKO_ID_MAP[symbol]
+      const id = COINGECKO_ID_MAP[symbol];
       if (!id) {
-        console.error(`No CoinGecko ID mapping found for ${symbol}`)
-        setNativePrice(150)
-        return
+        console.error(`No CoinGecko ID mapping found for ${symbol}`);
+        setNativePrice(150);
+        return;
       }
 
       const params = new URLSearchParams({
         ids: id,
         vs_currencies: "usd",
-      })
+      });
 
-      const headers: Record<string, string> = { Accept: "application/json" }
+      const headers: Record<string, string> = { Accept: "application/json" };
       // Optional: use demo (free) header if you have a key
       if (process.env.NEXT_PUBLIC_CG_API_KEY) {
-        headers["x-cg-demo-api-key"] = process.env.NEXT_PUBLIC_CG_API_KEY
+        headers["x-cg-demo-api-key"] = process.env.NEXT_PUBLIC_CG_API_KEY;
       }
 
       const res = await fetch(`${COINGECKO_SIMPLE_PRICE}?${params.toString()}`, {
         headers,
         // avoid cached/stale responses & some edge CORS caches
         cache: "no-store",
-      })
+      });
 
       if (!res.ok) {
-        const body = await res.text().catch(() => "")
-        throw new Error(`CoinGecko request failed (${res.status}): ${body}`)
+        const body = await res.text().catch(() => "");
+        throw new Error(`CoinGecko request failed (${res.status}): ${body}`);
       }
 
-      const data = await res.json()
-      const price = data?.[id]?.usd
+      const data = await res.json();
+      const price = data?.[id]?.usd;
 
       if (typeof price !== "number") {
-        throw new Error(`Invalid response from CoinGecko: missing ${id}.usd`)
+        throw new Error(`Invalid response from CoinGecko: missing ${id}.usd`);
       }
 
-      setNativePrice(price)
+      setNativePrice(price);
     } catch (err) {
-      console.error("Error fetching native token price:", err)
+      console.error("Error fetching native token price:", err);
       // Safe fallback
-      setNativePrice(150)
+      setNativePrice(150);
     }
-  }
+  };
 
   // Refresh data after trade and enrich with prices
   const refreshData = async () => {
@@ -539,7 +555,7 @@ export default function MobileTrading() {
       }
 
       // Fetch updated native price
-      await fetchNativePrice(selectedChain)
+      await fetchNativePrice(selectedChain);
 
       const positionsData = await client.getPositionsByChain(selectedChain)
 
@@ -560,7 +576,7 @@ export default function MobileTrading() {
                 ...position,
                 currentPrice: details.token.priceUsd,
                 marketCap: formatMarketCap(details.token.marketCap),
-                priceChange24h: details.token.change?.h24,
+                priceChange24h: details.token.change?.h24
               }
             }
             return position
@@ -568,7 +584,7 @@ export default function MobileTrading() {
             console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
             return position
           }
-        }),
+        })
       )
 
       setPositions(enrichedPositions)
@@ -582,7 +598,7 @@ export default function MobileTrading() {
     if (!client || !selectedToken || isTrading) return
 
     // Parse amount (remove currency symbol)
-    const amount = Number.parseFloat(amountStr.split(" ")[0])
+    const amount = parseFloat(amountStr.split(' ')[0])
 
     if (isNaN(amount) || amount <= 0) {
       showNotification("Invalid amount", "error")
@@ -597,7 +613,7 @@ export default function MobileTrading() {
         selectedChain,
         selectedToken.address,
         amount,
-        0.5, // 0.5% slippage
+        0.5 // 0.5% slippage
       )
 
       if (result.success) {
@@ -621,7 +637,7 @@ export default function MobileTrading() {
 
   // Handle custom buy amount
   const handleCustomBuy = async () => {
-    const amount = Number.parseFloat(customBuyAmount)
+    const amount = parseFloat(customBuyAmount)
 
     if (isNaN(amount) || amount <= 0) {
       showNotification("Please enter a valid amount", "error")
@@ -635,7 +651,7 @@ export default function MobileTrading() {
   const handleSellWithAmount = async (amountStr: string) => {
     if (!client || !selectedToken || isTrading) return
 
-    const position = positions.find((p) => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase())
+    const position = positions.find(p => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase())
     if (!position) {
       showNotification("Position not found", "error")
       return
@@ -643,10 +659,10 @@ export default function MobileTrading() {
 
     // Parse amount (remove % symbol)
     let percent: number
-    if (amountStr.includes("%")) {
-      percent = Number.parseFloat(amountStr.replace("%", ""))
+    if (amountStr.includes('%')) {
+      percent = parseFloat(amountStr.replace('%', ''))
     } else {
-      percent = Number.parseFloat(amountStr)
+      percent = parseFloat(amountStr)
     }
 
     if (isNaN(percent) || percent <= 0 || percent > 100) {
@@ -663,7 +679,7 @@ export default function MobileTrading() {
         position.chain,
         position.tokenAddress,
         percent,
-        0.5, // 0.5% slippage
+        0.5 // 0.5% slippage
       )
 
       if (result.success) {
@@ -685,7 +701,7 @@ export default function MobileTrading() {
 
   // Handle custom sell amount
   const handleCustomSell = async () => {
-    const amount = Number.parseFloat(customSellAmount)
+    const amount = parseFloat(customSellAmount)
 
     if (isNaN(amount) || amount <= 0 || amount > 100) {
       showNotification("Please enter a valid percentage (0-100)", "error")
@@ -723,7 +739,7 @@ export default function MobileTrading() {
         const h24Change = token.change?.h24 ?? 0
         const h24Volume = token.volume?.h24 ?? 0
 
-        const currentChain = chains.find((c) => c.key === position.chain)
+        const currentChain = chains.find(c => c.key === position.chain)
         const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
 
         const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
@@ -796,7 +812,7 @@ export default function MobileTrading() {
         }
 
         // Fetch initial native price
-        await fetchNativePrice("solana")
+        await fetchNativePrice("solana");
 
         const positionsData = await newClient.getPositionsByChain("solana")
 
@@ -817,7 +833,7 @@ export default function MobileTrading() {
                   ...position,
                   currentPrice: details.token.priceUsd,
                   marketCap: formatMarketCap(details.token.marketCap),
-                  priceChange24h: details.token.change?.h24,
+                  priceChange24h: details.token.change?.h24
                 }
               }
               return position
@@ -825,7 +841,7 @@ export default function MobileTrading() {
               console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
               return position
             }
-          }),
+          })
         )
 
         setPositions(enrichedPositions)
@@ -860,7 +876,7 @@ export default function MobileTrading() {
         }
 
         // Fetch native price for the new chain
-        await fetchNativePrice(selectedChain)
+        await fetchNativePrice(selectedChain);
 
         const positionsData = await client.getPositionsByChain(selectedChain)
 
@@ -881,7 +897,7 @@ export default function MobileTrading() {
                   ...position,
                   currentPrice: details.token.priceUsd,
                   marketCap: formatMarketCap(details.token.marketCap),
-                  priceChange24h: details.token.change?.h24,
+                  priceChange24h: details.token.change?.h24
                 }
               }
               return position
@@ -889,7 +905,7 @@ export default function MobileTrading() {
               console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
               return position
             }
-          }),
+          })
         )
 
         setPositions(enrichedPositions)
@@ -937,7 +953,7 @@ export default function MobileTrading() {
       return
     }
 
-    const currentChain = chains.find((c) => c.key === selectedChain)
+    const currentChain = chains.find(c => c.key === selectedChain)
     const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
 
     if (client) {
@@ -999,9 +1015,9 @@ export default function MobileTrading() {
     }
   }
 
-  const currentChain = chains.find((c) => c.key === selectedChain)
+  const currentChain = chains.find(c => c.key === selectedChain)
   const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
-  const usdBalance = balance * nativePrice
+  const usdBalance = balance * nativePrice;
 
   if (loading) {
     return (
@@ -1023,16 +1039,15 @@ export default function MobileTrading() {
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       {/* Notifications */}
       <div className="fixed top-4 left-0 right-0 z-50 flex flex-col items-center gap-2 px-4">
-        {notifications.map((notification) => (
+        {notifications.map(notification => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
-              notification.type === "success"
-                ? "bg-green-500/90 text-white"
-                : notification.type === "error"
-                  ? "bg-red-500/90 text-white"
-                  : "bg-blue-500/90 text-white"
-            }`}
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === 'success'
+              ? 'bg-green-500/90 text-white'
+              : notification.type === 'error'
+                ? 'bg-red-500/90 text-white'
+                : 'bg-blue-500/90 text-white'
+              }`}
           >
             {notification.message}
           </div>
@@ -1052,10 +1067,7 @@ export default function MobileTrading() {
             <h1 className="text-xl font-bold text-white">Debonk</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              aria-label="Help"
-              className="w-9 h-9 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525] transition-colors"
-            >
+            <button aria-label="Help" className="w-9 h-9 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525] transition-colors">
               <Image
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/material-symbols-light_help-wzZ3QyqUPIVgaNK2vj5Hj5spBBxnwv.png"
                 alt="Help"
@@ -1064,10 +1076,7 @@ export default function MobileTrading() {
                 className="w-5 h-5"
               />
             </button>
-            <button
-              aria-label="Notifications"
-              className="w-9 h-9 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525] transition-colors"
-            >
+            <button aria-label="Notifications" className="w-9 h-9 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525] transition-colors">
               <Image
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fluent_alert-16-filled%20%281%29-7YZCWgx5VvVWw3txTFGlwTEnmh6kOr.png"
                 alt="Notifications"
@@ -1081,16 +1090,10 @@ export default function MobileTrading() {
 
         <div className="flex items-center justify-center w-full mb-6">
           <div className="flex items-center gap-2 bg-[#0F0F0F] border border-[#1F1F1F] rounded-full px-2 py-1.5">
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-medium ${mode === "demo" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"} cursor-pointer`}
-              onClick={() => setMode("demo")}
-            >
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${mode === "demo" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"} cursor-pointer`} onClick={() => setMode("demo")}>
               • Demo
             </div>
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-medium ${mode === "live" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"} cursor-pointer`}
-              onClick={() => setMode("live")}
-            >
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${mode === "live" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"} cursor-pointer`} onClick={() => setMode("live")}>
               • Live
             </div>
           </div>
@@ -1126,7 +1129,7 @@ export default function MobileTrading() {
                 onChange={(e) => setSelectedChain(e.target.value)}
                 className="bg-[#1A1A1A] text-white text-xs border border-[#2A2A2A] rounded px-2 py-1"
               >
-                {chains.map((chain) => (
+                {chains.map(chain => (
                   <option key={chain.key} value={chain.key}>
                     {chain.name}
                   </option>
@@ -1173,16 +1176,13 @@ export default function MobileTrading() {
             positions.map((position) => {
               const priceChange24h = position.priceChange24h ?? 0
               const positionValue = position.currentPrice
-                ? Number.parseFloat(position.amountHeld) * position.currentPrice
+                ? parseFloat(position.amountHeld) * position.currentPrice
                 : 0
-              const isPositive = priceChange24h >= 0
 
               return (
                 <div
                   key={position.id}
-                  className={`border rounded-2xl p-4 transition-colors ${
-                    isPositive ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"
-                  }`}
+                  className="bg-[#111111] border border-[#252525] rounded-2xl p-4"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div
@@ -1191,11 +1191,8 @@ export default function MobileTrading() {
                     >
                       <div className="text-base font-semibold text-white">${position.tokenTicker}</div>
                       {position.priceChange24h !== undefined && (
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded ${priceChange24h >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}
-                        >
-                          {priceChange24h >= 0 ? "+" : ""}
-                          {priceChange24h.toFixed(2)}%
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${priceChange24h >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                         </span>
                       )}
                     </div>
@@ -1218,15 +1215,22 @@ export default function MobileTrading() {
                       {isTrading && isTradingId === position.id ? "..." : "Sell 100%"}
                     </Button>
                   </div>
-                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => handlePositionClick(position)}>
-                    {position.marketCap && <span className="text-xs text-gray-400">MC {position.marketCap}</span>}
+                  <div
+                    className="flex items-center gap-3 cursor-pointer"
+                    onClick={() => handlePositionClick(position)}
+                  >
+                    {position.marketCap && (
+                      <span className="text-xs text-gray-400">MC {position.marketCap}</span>
+                    )}
                     {/* {position.currentPrice && (
                       <span className="text-xs text-gray-300">
                         ${position.currentPrice.toFixed(4)}
                       </span>
                     )} */}
                     {positionValue > 0 && (
-                      <span className="text-xs font-semibold text-white">${positionValue.toFixed(2)}</span>
+                      <span className="text-xs font-semibold text-white">
+                        ${positionValue.toFixed(2)}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1249,12 +1253,14 @@ export default function MobileTrading() {
             <Button
               onClick={hasValidToken ? handleBuyClick : handlePasteClick}
               disabled={isTrading}
-              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? "bg-[#D4AF37] hover:opacity-90 text-black font-semibold border-transparent" : "bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? 'bg-[#D4AF37] hover:opacity-90 text-black font-semibold border-transparent' : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isTrading ? "..." : hasValidToken ? "Buy" : "Paste"}
             </Button>
           </div>
-          {pasteError && <p className="text-xs text-yellow-400 mt-1 text-center">{pasteError}</p>}
+          {pasteError && (
+            <p className="text-xs text-yellow-400 mt-1 text-center">{pasteError}</p>
+          )}
         </div>
         <div className="flex items-center justify-between px-6 py-3 pb-[calc(env(safe-area-inset-bottom))] gap-2 max-w-2xl mx-auto">
           <button
@@ -1268,7 +1274,9 @@ export default function MobileTrading() {
               height={24}
               className="w-6 h-6 opacity-50"
             />
-            {activeTab === "home" && <div className="w-8 h-0.5 bg-[#D4AF37]"></div>}
+            {activeTab === "home" && (
+              <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("chart")}
@@ -1281,7 +1289,9 @@ export default function MobileTrading() {
               height={24}
               className={`w-6 h-6 ${activeTab === "chart" ? "" : "opacity-50"}`}
             />
-            {activeTab === "chart" && <div className="w-8 h-0.5 bg-[#D4AF37]"></div>}
+            {activeTab === "chart" && (
+              <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("settings")}
@@ -1294,7 +1304,9 @@ export default function MobileTrading() {
               height={24}
               className={`w-6 h-6 ${activeTab === "settings" ? "" : "opacity-50"}`}
             />
-            {activeTab === "settings" && <div className="w-8 h-0.5 bg-[#D4AF37]"></div>}
+            {activeTab === "settings" && (
+              <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("social")}
@@ -1307,7 +1319,9 @@ export default function MobileTrading() {
               height={24}
               className={`w-6 h-6 ${activeTab === "social" ? "" : "opacity-50"}`}
             />
-            {activeTab === "social" && <div className="w-8 h-0.5 bg-[#D4AF37]"></div>}
+            {activeTab === "social" && (
+              <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("help")}
@@ -1320,7 +1334,9 @@ export default function MobileTrading() {
               height={24}
               className={`w-6 h-6 ${activeTab === "help" ? "" : "opacity-50"}`}
             />
-            {activeTab === "help" && <div className="w-8 h-0.5 bg-[#D4AF37]"></div>}
+            {activeTab === "help" && (
+              <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
+            )}
           </button>
         </div>
       </div>
@@ -1328,72 +1344,35 @@ export default function MobileTrading() {
 
       {/* Token Detail Modal */}
       {showTokenDetail && selectedToken && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
-          onClick={() => setShowTokenDetail(false)}
-        >
-          <div
-            className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowTokenDetail(false)}>
+          <div className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">{selectedToken.name}</h2>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedToken.address)
-                    showNotification("CA copied!", "success")
-                  }}
-                  className="text-gray-400 hover:text-white transition-colors"
-                  title="Copy contract address"
-                >
-                  <Image
-                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ion_copy-tN5Kmg8bxbyMQVDSbLbfeMkejTdvGp.png"
-                    alt="Copy"
-                    width={16}
-                    height={16}
-                    className="w-4 h-4"
-                  />
-                </button>
-              </div>
-              <button
-                onClick={() => setShowTokenDetail(false)}
-                className="text-gray-400 hover:text-white text-2xl leading-none"
-              >
-                ✕
-              </button>
+              <h2 className="text-xl font-bold text-white">{selectedToken.name}</h2>
+              <button onClick={() => setShowTokenDetail(false)} className="text-gray-400 hover:text-white text-2xl leading-none">✕</button>
             </div>
 
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm text-gray-400">{selectedToken.symbol}</span>
-                <span className="text-sm px-3 py-1.5 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-white font-semibold">
-                  {selectedToken.marketData.price}
-                </span>
+                <span className="text-xs px-2 py-1 rounded bg-[#1A1A1A] text-gray-300">{selectedToken.marketData.price}</span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="bg-[#1A1A1A] rounded-lg p-3">
                   <div className="text-xs text-gray-400 mb-1">5m</div>
-                  <div
-                    className={`text-sm font-semibold ${selectedToken.pnlData.fiveMin.startsWith("+") ? "text-green-400" : "text-red-400"}`}
-                  >
+                  <div className={`text-sm font-semibold ${selectedToken.pnlData.fiveMin.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
                     {selectedToken.pnlData.fiveMin}
                   </div>
                 </div>
                 <div className="bg-[#1A1A1A] rounded-lg p-3">
                   <div className="text-xs text-gray-400 mb-1">1h</div>
-                  <div
-                    className={`text-sm font-semibold ${selectedToken.pnlData.oneHour.startsWith("+") ? "text-green-400" : "text-red-400"}`}
-                  >
+                  <div className={`text-sm font-semibold ${selectedToken.pnlData.oneHour.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
                     {selectedToken.pnlData.oneHour}
                   </div>
                 </div>
                 <div className="bg-[#1A1A1A] rounded-lg p-3">
                   <div className="text-xs text-gray-400 mb-1">24h</div>
-                  <div
-                    className={`text-sm font-semibold ${selectedToken.pnlData.twentyFourHours.startsWith("+") ? "text-green-400" : "text-red-400"}`}
-                  >
+                  <div className={`text-sm font-semibold ${selectedToken.pnlData.twentyFourHours.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
                     {selectedToken.pnlData.twentyFourHours}
                   </div>
                 </div>
@@ -1415,7 +1394,7 @@ export default function MobileTrading() {
               </div>
 
               {/* Check if user has a position */}
-              {positions.find((p) => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()) ? (
+              {positions.find(p => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()) ? (
                 <>
                   {/* Show both Buy and Sell options */}
                   <div className="space-y-4">
@@ -1454,7 +1433,7 @@ export default function MobileTrading() {
                             <Button
                               key={index}
                               onClick={() => {
-                                if (amount.startsWith("X")) {
+                                if (amount.startsWith('X')) {
                                   setShowCustomBuyInput(true)
                                 } else {
                                   handleBuyWithAmount(amount)
@@ -1463,7 +1442,7 @@ export default function MobileTrading() {
                               disabled={isTrading}
                               className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
                             >
-                              {isTrading ? "..." : amount.startsWith("X") ? `Custom` : amount}
+                              {isTrading ? "..." : amount.startsWith('X') ? `Custom` : amount}
                             </Button>
                           ))}
                         </div>
@@ -1505,7 +1484,7 @@ export default function MobileTrading() {
                             <Button
                               key={index}
                               onClick={() => {
-                                if (amount === "X") {
+                                if (amount === 'X') {
                                   setShowCustomSellInput(true)
                                 } else {
                                   handleSellWithAmount(amount)
@@ -1514,7 +1493,7 @@ export default function MobileTrading() {
                               disabled={isTrading}
                               className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
                             >
-                              {isTrading ? "..." : amount === "X" ? "Custom" : amount}
+                              {isTrading ? "..." : amount === 'X' ? 'Custom' : amount}
                             </Button>
                           ))}
                         </div>
@@ -1560,7 +1539,7 @@ export default function MobileTrading() {
                           <Button
                             key={index}
                             onClick={() => {
-                              if (amount.startsWith("X")) {
+                              if (amount.startsWith('X')) {
                                 setShowCustomBuyInput(true)
                               } else {
                                 handleBuyWithAmount(amount)
@@ -1569,7 +1548,7 @@ export default function MobileTrading() {
                             disabled={isTrading}
                             className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
                           >
-                            {isTrading ? "..." : amount.startsWith("X") ? `Custom` : amount}
+                            {isTrading ? "..." : amount.startsWith('X') ? `Custom` : amount}
                           </Button>
                         ))}
                       </div>
