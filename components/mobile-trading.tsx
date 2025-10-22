@@ -1127,7 +1127,7 @@ export default function MobileTrading() {
                         if (!client || isTrading) return
 
                         // Open modal first
-                        // await handlePositionClick(position)
+                        await handlePositionClick(position)
 
                         // Then trigger 100% sell after modal loads
                         setTimeout(() => {
