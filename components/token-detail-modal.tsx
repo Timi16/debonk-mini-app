@@ -61,9 +61,15 @@ export function TokenDetailModal({
         <div className="mb-6 pb-4 border-b border-[#252525]">
           <p className="text-xs text-gray-400 mb-2">Performance</p>
           <div className="flex gap-4 text-sm">
-            <span className="text-red-400">5m: {pnlData.fiveMin}</span>
-            <span className="text-emerald-400">1hr: {pnlData.oneHour}</span>
-            <span className="text-emerald-400">24hrs: {pnlData.twentyFourHours}</span>
+            <span className={`${pnlData.fiveMin.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>
+              5m: {pnlData.fiveMin}
+            </span>
+            <span className={`${pnlData.oneHour.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>
+              1hr: {pnlData.oneHour}
+            </span>
+            <span className={`${pnlData.twentyFourHours.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>
+              24hrs: {pnlData.twentyFourHours}
+            </span>
           </div>
         </div>
 
@@ -92,7 +98,7 @@ export function TokenDetailModal({
           {buyAmounts.map((amount, index) => (
             <Button
               key={index}
-              className="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-full h-12"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12"
             >
               {amount}
             </Button>
