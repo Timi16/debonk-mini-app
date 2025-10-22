@@ -484,6 +484,33 @@ export default function MobileTrading() {
 
       const positionsData = await client.getPositionsByChain(selectedChain)
       setPositions(positionsData)
+      
+      // Load token details for the first position if exists
+      if (positionsData.length > 0) {
+        const firstPosition = positionsData[0]
+        const details = await client.getTokenDetails(firstPosition.chain, firstPosition.tokenAddress)
+        if (details.success) {
+          const token = details.token
+          setSelectedToken({
+            name: token.name,
+            symbol: token.symbol,
+            address: token.address,
+            pnlData: {
+              fiveMin: "0%",
+              oneHour: "0%",
+              twentyFourHours: "0%",
+            },
+            marketData: {
+              marketCap: formatMarketCap(token.marketCap),
+              liquidity: `$${token.liquidityInUsd.toLocaleString()}`,
+              price: `$${token.priceUsd.toFixed(4)}`,
+              volume24h: `$${(token.volume?.h24 || 0).toLocaleString()}`,
+            },
+            buyAmounts: [],
+            sellAmounts: [],
+          })
+        }
+      }
     } catch (err) {
       console.error("Error refreshing data:", err)
     }
@@ -863,6 +890,13 @@ export default function MobileTrading() {
     )
   }
 
+  // Format market cap
+  const formatMarketCap = (mc: number): string => {
+    if (mc >= 1e9) return `${(mc / 1e9).toFixed(1)}B`
+    if (mc >= 1e6) return `${(mc / 1e6).toFixed(1)}M`
+    return mc.toLocaleString()
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       {/* Notifications */}
@@ -1003,25 +1037,26 @@ export default function MobileTrading() {
             positions.map((position) => (
               <div 
                 key={position.id} 
-                onClick={() => handlePositionClick(position)}
-                className="bg-[#111111] border border-[#252525] rounded-2xl p-4 cursor-pointer hover:bg-[#151515] transition-colors"
+                className="bg-[#111111] border border-[#252525] rounded-2xl p-4 hover:bg-[#151515] transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
+                <div className="flex flex-col space-y-3">
+                  <div className="flex items-center justify-between">
                     <div className="text-base font-semibold text-white">${position.tokenTicker}</div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
-                        {parseFloat(position.amountHeld).toFixed(2)}
-                      </span>
-                      <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
-                        ${parseFloat(position.avgBuyPrice).toFixed(4)}
-                      </span>
-                    </div>
+                    <span className="text-sm text-gray-400">MC: ${selectedToken?.marketData?.marketCap || '...'}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-300">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-300">
                       {parseFloat(position.amountHeld).toFixed(4)} {position.tokenTicker}
-                    </span>
+                    </div>
+                    <Button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSellWithAmount("100");
+                      }}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs px-3 py-1 h-8 rounded-lg"
+                    >
+                      Sell
+                    </Button>
                   </div>
                 </div>
               </div>
