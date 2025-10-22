@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-import { X } from "lucide-react"
+
 
 // Dynamically import WebApp only on client side
 let WebApp: any = null
@@ -462,7 +462,6 @@ export default function MobileTrading() {
   const [customBuyAmount, setCustomBuyAmount] = useState("")
   const [showCustomSellInput, setShowCustomSellInput] = useState(false)
   const [customSellAmount, setCustomSellAmount] = useState("")
-  const [showCA, setShowCA] = useState(false)
 
   // Show notification
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -761,13 +760,6 @@ export default function MobileTrading() {
     }
   }
 
-  const handleCopyCA = (ca: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(ca)
-      showNotification("Contract address copied!", "success")
-    }
-  }
-
   const handlePasteClick = () => {
     setPasteError("Please long-press the input field and select 'Paste' to enter the contract address.")
   }
@@ -818,7 +810,7 @@ export default function MobileTrading() {
           const h24Volume = token.volume?.h24 ?? 0
 
           const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
-          const sellAmounts = [`50%`, `75%`, `100%`, `X%`]
+          const sellAmounts = [`10%`, `50%`, `75%`, `100%`]
 
           setSelectedToken({
             name: token.name,
@@ -1011,33 +1003,26 @@ export default function MobileTrading() {
             positions.map((position) => (
               <div 
                 key={position.id} 
-                className="bg-[#111111] border border-[#252525] rounded-2xl p-4"
+                onClick={() => handlePositionClick(position)}
+                className="bg-[#111111] border border-[#252525] rounded-2xl p-4 cursor-pointer hover:bg-[#151515] transition-colors"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div 
-                    className="flex flex-col cursor-pointer" 
-                    onClick={() => handlePositionClick(position)}
-                  >
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
                     <div className="text-base font-semibold text-white">${position.tokenTicker}</div>
                     <div className="mt-2 flex items-center gap-2">
                       <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
-                        MC: {parseFloat(position.avgBuyPrice) > 1000000 ? `${(parseFloat(position.avgBuyPrice) / 1000000).toFixed(2)}M` : `${parseFloat(position.avgBuyPrice).toFixed(0)}`}
+                        {parseFloat(position.amountHeld).toFixed(2)}
                       </span>
                       <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
                         ${parseFloat(position.avgBuyPrice).toFixed(4)}
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handlePositionClick(position)
-                    }}
-                    disabled={isTrading}
-                    className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Sell
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-300">
+                      {parseFloat(position.amountHeld).toFixed(4)} {position.tokenTicker}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))
@@ -1289,7 +1274,7 @@ export default function MobileTrading() {
                             <Button
                               key={index}
                               onClick={() => {
-                                if (amount === 'X' || amount === 'X%') {
+                                if (amount === 'X') {
                                   setShowCustomSellInput(true)
                                 } else {
                                   handleSellWithAmount(amount)
@@ -1298,7 +1283,7 @@ export default function MobileTrading() {
                               disabled={isTrading}
                               className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
                             >
-                              {isTrading ? "..." : (amount === 'X' || amount === 'X%') ? 'Custom' : amount}
+                              {isTrading ? "..." : amount === 'X' ? 'Custom' : amount}
                             </Button>
                           ))}
                         </div>
