@@ -1140,16 +1140,16 @@ export default function MobileTrading() {
                     {position.marketCap && (
                       <span className="text-xs text-gray-400">MC {position.marketCap}</span>
                     )}
-                    {position.currentPrice && (
+                    {/* {position.currentPrice && (
                       <span className="text-xs text-gray-300">
                         ${position.currentPrice.toFixed(4)}
                       </span>
-                    )}
-                    {/* {positionValue > 0 && (
+                    )} */}
+                    {positionValue > 0 && (
                       <span className="text-xs font-semibold text-white">
                         ${positionValue.toFixed(2)}
                       </span>
-                    )} */}
+                    )}
                   </div>
                 </div>
               )
