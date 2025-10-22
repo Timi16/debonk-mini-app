@@ -328,9 +328,9 @@ class MiniAppClient {
           })
         }
       );
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         return {
           success: false,
@@ -341,7 +341,7 @@ class MiniAppClient {
           amountInNative
         };
       }
-      
+
       return data;
     } catch (error) {
       console.error(`buyToken error for ${tokenAddress} on ${chain}:`, error);
@@ -373,9 +373,9 @@ class MiniAppClient {
           })
         }
       );
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         return {
           success: false,
@@ -386,7 +386,7 @@ class MiniAppClient {
           percentToSell
         };
       }
-      
+
       return data;
     } catch (error) {
       console.error(`sellToken error for ${tokenAddress} on ${chain}:`, error);
@@ -482,7 +482,7 @@ export default function MobileTrading() {
   // Refresh data after trade and enrich with prices
   const refreshData = async () => {
     if (!client) return
-    
+
     try {
       const balanceData = await client.getBalance(selectedChain)
       if (balanceData.success) {
@@ -490,7 +490,7 @@ export default function MobileTrading() {
       }
 
       const positionsData = await client.getPositionsByChain(selectedChain)
-      
+
       // Enrich positions with current prices and market data
       const enrichedPositions = await Promise.all(
         positionsData.map(async (position) => {
@@ -518,7 +518,7 @@ export default function MobileTrading() {
           }
         })
       )
-      
+
       setPositions(enrichedPositions)
     } catch (err) {
       console.error("Error refreshing data:", err)
@@ -531,7 +531,7 @@ export default function MobileTrading() {
 
     // Parse amount (remove currency symbol)
     const amount = parseFloat(amountStr.split(' ')[0])
-    
+
     if (isNaN(amount) || amount <= 0) {
       showNotification("Invalid amount", "error")
       return
@@ -570,7 +570,7 @@ export default function MobileTrading() {
   // Handle custom buy amount
   const handleCustomBuy = async () => {
     const amount = parseFloat(customBuyAmount)
-    
+
     if (isNaN(amount) || amount <= 0) {
       showNotification("Please enter a valid amount", "error")
       return
@@ -596,7 +596,7 @@ export default function MobileTrading() {
     } else {
       percent = parseFloat(amountStr)
     }
-    
+
     if (isNaN(percent) || percent <= 0 || percent > 100) {
       showNotification("Invalid sell amount (must be between 0-100%)", "error")
       return
@@ -634,7 +634,7 @@ export default function MobileTrading() {
   // Handle custom sell amount
   const handleCustomSell = async () => {
     const amount = parseFloat(customSellAmount)
-    
+
     if (isNaN(amount) || amount <= 0 || amount > 100) {
       showNotification("Please enter a valid percentage (0-100)", "error")
       return
@@ -744,7 +744,7 @@ export default function MobileTrading() {
         }
 
         const positionsData = await newClient.getPositionsByChain("solana")
-        
+
         // Enrich positions with current prices
         const enrichedPositions = await Promise.all(
           positionsData.map(async (position) => {
@@ -772,7 +772,7 @@ export default function MobileTrading() {
             }
           })
         )
-        
+
         setPositions(enrichedPositions)
 
         const addressData = await newClient.getWalletAddress("solana")
@@ -805,7 +805,7 @@ export default function MobileTrading() {
         }
 
         const positionsData = await client.getPositionsByChain(selectedChain)
-        
+
         // Enrich positions with current prices and market data
         const enrichedPositions = await Promise.all(
           positionsData.map(async (position) => {
@@ -833,7 +833,7 @@ export default function MobileTrading() {
             }
           })
         )
-        
+
         setPositions(enrichedPositions)
 
         const addressData = await client.getWalletAddress(selectedChain)
@@ -967,13 +967,12 @@ export default function MobileTrading() {
         {notifications.map(notification => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
-              notification.type === 'success' 
-                ? 'bg-green-500/90 text-white' 
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === 'success'
+                ? 'bg-green-500/90 text-white'
                 : notification.type === 'error'
-                ? 'bg-red-500/90 text-white'
-                : 'bg-blue-500/90 text-white'
-            }`}
+                  ? 'bg-red-500/90 text-white'
+                  : 'bg-blue-500/90 text-white'
+              }`}
           >
             {notification.message}
           </div>
@@ -1101,17 +1100,17 @@ export default function MobileTrading() {
           ) : (
             positions.map((position) => {
               const priceChange24h = position.priceChange24h ?? 0
-              const positionValue = position.currentPrice 
-                ? parseFloat(position.amountHeld) * position.currentPrice 
+              const positionValue = position.currentPrice
+                ? parseFloat(position.amountHeld) * position.currentPrice
                 : 0
 
               return (
-                <div 
-                  key={position.id} 
+                <div
+                  key={position.id}
                   className="bg-[#111111] border border-[#252525] rounded-2xl p-4"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <div 
+                    <div
                       className="flex items-center gap-2 flex-1 cursor-pointer"
                       onClick={() => handlePositionClick(position)}
                     >
@@ -1123,17 +1122,25 @@ export default function MobileTrading() {
                       )}
                     </div>
                     <Button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation()
-                        handlePositionClick(position)
+                        if (!client || isTrading) return
+
+                        // Open modal first
+                        await handlePositionClick(position)
+
+                        // Then trigger 100% sell after modal loads
+                        setTimeout(() => {
+                          handleSellWithAmount("100%")
+                        }, 100)
                       }}
-                      disabled={isTrading}
+                      disabled={isTrading || isTradingId === position.id}
                       className="bg-[#3A3A3A] hover:bg-[#444444] text-white font-medium rounded-full px-4 h-9 text-xs disabled:opacity-50"
                     >
-                      Sell 100%
+                      {isTrading && isTradingId === position.id ? "..." : "Sell 100%"}
                     </Button>
                   </div>
-                  <div 
+                  <div
                     className="flex items-center gap-3 cursor-pointer"
                     onClick={() => handlePositionClick(position)}
                   >
@@ -1268,13 +1275,13 @@ export default function MobileTrading() {
               <h2 className="text-xl font-bold text-white">{selectedToken.name}</h2>
               <button onClick={() => setShowTokenDetail(false)} className="text-gray-400 hover:text-white text-2xl leading-none">✕</button>
             </div>
-            
+
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm text-gray-400">{selectedToken.symbol}</span>
                 <span className="text-xs px-2 py-1 rounded bg-[#1A1A1A] text-gray-300">{selectedToken.marketData.price}</span>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="bg-[#1A1A1A] rounded-lg p-3">
                   <div className="text-xs text-gray-400 mb-1">5m</div>
