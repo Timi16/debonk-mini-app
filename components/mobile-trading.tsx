@@ -1145,11 +1145,11 @@ export default function MobileTrading() {
                         ${position.currentPrice.toFixed(4)}
                       </span>
                     )}
-                    {positionValue > 0 && (
+                    {/* {positionValue > 0 && (
                       <span className="text-xs font-semibold text-white">
                         ${positionValue.toFixed(2)}
                       </span>
-                    )}
+                    )} */}
                   </div>
                 </div>
               )
