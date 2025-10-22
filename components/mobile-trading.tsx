@@ -1374,37 +1374,61 @@ export default function MobileTrading() {
             </div>
 
             <div className="flex items-center gap-3 mb-6 text-sm">
-              <span className="text-gray-400">{selectedToken.pnlData.fiveMin}</span>
+              <span
+                className={
+                  selectedToken.pnlData.fiveMin.includes("-")
+                    ? "text-red-400 font-semibold"
+                    : "text-green-400 font-semibold"
+                }
+              >
+                {selectedToken.pnlData.fiveMin}
+              </span>
               <span className="text-gray-500">|</span>
-              <span className="text-gray-400">{selectedToken.pnlData.oneHour}</span>
+              <span
+                className={
+                  selectedToken.pnlData.oneHour.includes("-")
+                    ? "text-red-400 font-semibold"
+                    : "text-green-400 font-semibold"
+                }
+              >
+                {selectedToken.pnlData.oneHour}
+              </span>
               <span className="text-gray-500">|</span>
-              <span className="text-gray-400">{selectedToken.pnlData.twentyFourHours}</span>
+              <span
+                className={
+                  selectedToken.pnlData.twentyFourHours.includes("-")
+                    ? "text-red-400 font-semibold"
+                    : "text-green-400 font-semibold"
+                }
+              >
+                {selectedToken.pnlData.twentyFourHours}
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
-                <div className="text-xs text-gray-400 mb-2">MARKET CAP</div>
-                <div className="text-lg font-semibold text-white">{selectedToken.marketData.marketCap}</div>
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Market Cap</div>
+                <div className="text-xl font-bold text-white">{selectedToken.marketData.marketCap}</div>
               </div>
               <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
-                <div className="text-xs text-gray-400 mb-2">LIQUIDITY</div>
-                <div className="text-lg font-semibold text-white">{selectedToken.marketData.liquidity}</div>
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Liquidity</div>
+                <div className="text-xl font-bold text-white">{selectedToken.marketData.liquidity}</div>
               </div>
               <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
-                <div className="text-xs text-gray-400 mb-2">PRICE</div>
-                <div className="text-lg font-semibold text-white">{selectedToken.marketData.price}</div>
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Price</div>
+                <div className="text-xl font-bold text-white">{selectedToken.marketData.price}</div>
               </div>
               <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
-                <div className="text-xs text-gray-400 mb-2">VOLUME 24H</div>
-                <div className="text-lg font-semibold text-white">{selectedToken.marketData.volume24h}</div>
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Volume 24H</div>
+                <div className="text-xl font-bold text-white">{selectedToken.marketData.volume24h}</div>
               </div>
             </div>
 
             {positions.find((p) => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()) ? (
               <>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-semibold text-white mb-3">Buy</h3>
+                    <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide">Buy</h3>
                     {showCustomBuyInput ? (
                       <div className="flex gap-2">
                         <Input
@@ -1433,7 +1457,7 @@ export default function MobileTrading() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex gap-2 overflow-x-auto pb-2">
+                      <div className="flex gap-3">
                         {selectedToken.buyAmounts.map((amount, index) => (
                           <Button
                             key={index}
@@ -1445,7 +1469,7 @@ export default function MobileTrading() {
                               }
                             }}
                             disabled={isTrading}
-                            className="flex-shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12 px-6 disabled:opacity-50 whitespace-nowrap"
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12 disabled:opacity-50"
                           >
                             {isTrading ? "..." : amount.startsWith("X") ? `X ${nativeSymbol}` : amount}
                           </Button>
@@ -1455,7 +1479,7 @@ export default function MobileTrading() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-white mb-3">Sell</h3>
+                    <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide">Sell</h3>
                     {showCustomSellInput ? (
                       <div className="flex gap-2">
                         <Input
@@ -1484,7 +1508,7 @@ export default function MobileTrading() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex gap-2 overflow-x-auto pb-2">
+                      <div className="flex gap-3">
                         {selectedToken.sellAmounts.map((amount, index) => (
                           <Button
                             key={index}
@@ -1496,7 +1520,7 @@ export default function MobileTrading() {
                               }
                             }}
                             disabled={isTrading}
-                            className="flex-shrink-0 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full h-12 px-6 disabled:opacity-50 whitespace-nowrap"
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full h-12 disabled:opacity-50"
                           >
                             {isTrading ? "..." : amount === "X" ? "Custom" : amount}
                           </Button>
@@ -1509,7 +1533,7 @@ export default function MobileTrading() {
             ) : (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-white mb-3">Buy</h3>
+                  <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide">Buy</h3>
                   {showCustomBuyInput ? (
                     <div className="flex gap-2">
                       <Input
@@ -1538,7 +1562,7 @@ export default function MobileTrading() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex gap-2 overflow-x-auto pb-2">
+                    <div className="flex gap-3">
                       {selectedToken.buyAmounts.map((amount, index) => (
                         <Button
                           key={index}
@@ -1550,7 +1574,7 @@ export default function MobileTrading() {
                             }
                           }}
                           disabled={isTrading}
-                          className="flex-shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12 px-6 disabled:opacity-50 whitespace-nowrap"
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12 disabled:opacity-50"
                         >
                           {isTrading ? "..." : amount.startsWith("X") ? `X ${nativeSymbol}` : amount}
                         </Button>
