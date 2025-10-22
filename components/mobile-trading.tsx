@@ -4,9 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-import { TokenDetailModal } from "./token-detail-modal"
 import { X } from "lucide-react"
-import { set } from "date-fns"
 
 // Dynamically import WebApp only on client side
 let WebApp: any = null
@@ -431,6 +429,7 @@ interface SelectedToken {
     volume24h: string;
   };
   buyAmounts: string[];
+  sellAmounts: string[];
 }
 
 interface Notification {
@@ -439,7 +438,7 @@ interface Notification {
   type: 'success' | 'error' | 'info';
 }
 
-export function MobileTrading() {
+export default function MobileTrading() {
   const [activeTab, setActiveTab] = useState("home")
   const [mode, setMode] = useState<"demo" | "live">("demo")
   const [tokenInput, setTokenInput] = useState("")
@@ -461,6 +460,8 @@ export function MobileTrading() {
   const [isTradingId, setIsTradingId] = useState<string>()
   const [showCustomBuyInput, setShowCustomBuyInput] = useState(false)
   const [customBuyAmount, setCustomBuyAmount] = useState("")
+  const [showCustomSellInput, setShowCustomSellInput] = useState(false)
+  const [customSellAmount, setCustomSellAmount] = useState("")
 
   // Show notification
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -517,6 +518,8 @@ export function MobileTrading() {
         setTokenInput("")
         setSelectedToken(null)
         setHasValidToken(false)
+        setShowCustomBuyInput(false)
+        setCustomBuyAmount("")
         await refreshData()
       } else {
         showNotification(`❌ Buy failed: ${result.error}`, "error")
@@ -538,13 +541,30 @@ export function MobileTrading() {
     }
 
     await handleBuyWithAmount(customBuyAmount)
-    setShowCustomBuyInput(false)
-    setCustomBuyAmount("")
   }
 
-  // Handle sell
-  const handleSellPosition = async (position: Position, percent: number = 100) => {
-    if (!client || isTrading) return
+  // Handle sell with preset amount (percentage based)
+  const handleSellWithAmount = async (amountStr: string) => {
+    if (!client || !selectedToken || isTrading) return
+
+    const position = positions.find(p => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase())
+    if (!position) {
+      showNotification("Position not found", "error")
+      return
+    }
+
+    // Parse amount (remove % symbol)
+    let percent: number
+    if (amountStr.includes('%')) {
+      percent = parseFloat(amountStr.replace('%', ''))
+    } else {
+      percent = parseFloat(amountStr)
+    }
+    
+    if (isNaN(percent) || percent <= 0 || percent > 100) {
+      showNotification("Invalid sell amount (must be between 0-100%)", "error")
+      return
+    }
 
     setIsTrading(true)
     setIsTradingId(position.id)
@@ -559,16 +579,94 @@ export function MobileTrading() {
       )
 
       if (result.success) {
-        showNotification(`Sell transaction successful!`, "success")
+        showNotification(`✅ Sell transaction successful!`, "success")
+        setShowTokenDetail(false)
+        setShowCustomSellInput(false)
+        setCustomSellAmount("")
         await refreshData()
       } else {
-        showNotification(`Sell failed: ${result.error}`, "error")
+        showNotification(`❌ Sell failed: ${result.error}`, "error")
       }
     } catch (err) {
-      showNotification(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+      showNotification(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
     } finally {
       setIsTrading(false)
-      setIsTradingId("") 
+      setIsTradingId("")
+    }
+  }
+
+  // Handle custom sell amount
+  const handleCustomSell = async () => {
+    const amount = parseFloat(customSellAmount)
+    
+    if (isNaN(amount) || amount <= 0 || amount > 100) {
+      showNotification("Please enter a valid percentage (0-100)", "error")
+      return
+    }
+
+    await handleSellWithAmount(customSellAmount)
+  }
+
+  // Handle position card click
+  const handlePositionClick = async (position: Position) => {
+    if (!client || isTrading) return
+
+    showNotification("Loading token details...", "info")
+
+    try {
+      const details = await client.getTokenDetails(position.chain, position.tokenAddress)
+
+      if (details.success) {
+        const token = details.token
+
+        const formatChange = (val: number | undefined): string => {
+          if (val === undefined) return "0.00%"
+          return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`
+        }
+
+        const formatMarketCap = (mc: number): string => {
+          if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+          if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+          return `$${mc.toLocaleString()}`
+        }
+
+        const m5Change = token.change?.m5 ?? 0
+        const h1Change = token.change?.h1 ?? 0
+        const h24Change = token.change?.h24 ?? 0
+        const h24Volume = token.volume?.h24 ?? 0
+
+        const currentChain = chains.find(c => c.key === position.chain)
+        const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
+
+        const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
+        const sellAmounts = [`10%`, `50%`, `75%`, `100%`]
+
+        setSelectedToken({
+          name: token.name,
+          symbol: token.symbol,
+          address: token.address,
+          pnlData: {
+            fiveMin: formatChange(m5Change),
+            oneHour: formatChange(h1Change),
+            twentyFourHours: formatChange(h24Change),
+          },
+          marketData: {
+            marketCap: formatMarketCap(token.marketCap),
+            liquidity: `$${token.liquidityInUsd.toLocaleString()}`,
+            price: `$${token.priceUsd.toFixed(4)}`,
+            volume24h: `$${h24Volume.toLocaleString()}`,
+          },
+          buyAmounts,
+          sellAmounts,
+        })
+
+        setShowTokenDetail(true)
+      } else {
+        showNotification("Failed to fetch token details", "error")
+      }
+    } catch (err) {
+      console.error("Failed to fetch token:", err)
+      showNotification("Failed to load token details", "error")
     }
   }
 
@@ -712,6 +810,7 @@ export function MobileTrading() {
           const h24Volume = token.volume?.h24 ?? 0
 
           const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
+          const sellAmounts = [`10%`, `50%`, `75%`, `100%`]
 
           setSelectedToken({
             name: token.name,
@@ -729,6 +828,7 @@ export function MobileTrading() {
               volume24h: `$${h24Volume.toLocaleString()}`,
             },
             buyAmounts,
+            sellAmounts,
           })
 
           setHasValidToken(true)
@@ -882,7 +982,7 @@ export function MobileTrading() {
             <p className="text-sm text-red-400/90 mb-6">▼ 32.95%</p>
 
             <div className="flex gap-3">
-              <Button className="flex-1 bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold rounded-xl h-11">
+              <Button className="flex-1 bg-[#D4AF37] hover:opacity-90 text-black font-semibold rounded-xl h-11">
                 Withdraw
               </Button>
               <Button className="flex-1 bg-[#1A1A1A] hover:bg-[#252525] text-white font-semibold rounded-xl h-11 border border-[#2A2A2A]">
@@ -901,7 +1001,11 @@ export function MobileTrading() {
             <div className="text-center text-gray-400 py-8">No positions yet</div>
           ) : (
             positions.map((position) => (
-              <div key={position.id} className="bg-[#111111] border border-[#252525] rounded-2xl p-4">
+              <div 
+                key={position.id} 
+                onClick={() => handlePositionClick(position)}
+                className="bg-[#111111] border border-[#252525] rounded-2xl p-4 cursor-pointer hover:bg-[#151515] transition-colors"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <div className="text-base font-semibold text-white">${position.tokenTicker}</div>
@@ -918,13 +1022,6 @@ export function MobileTrading() {
                     <span className="text-sm font-semibold text-gray-300">
                       {parseFloat(position.amountHeld).toFixed(4)} {position.tokenTicker}
                     </span>
-                    <Button 
-                      onClick={() => handleSellPosition(position, 100)}
-                      disabled={isTrading}
-                      className="bg-[#3A3A3A] hover:bg-[#444444] text-white text-sm h-9 px-5 rounded-full font-medium shadow-inner border border-[#444444] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isTrading && isTradingId === position.id ? "Processing..." : "Sell 100%"}
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -946,7 +1043,7 @@ export function MobileTrading() {
             <Button
               onClick={hasValidToken ? handleBuyClick : handlePasteClick}
               disabled={isTrading}
-              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? 'bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold border-transparent' : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'} disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${hasValidToken ? 'bg-[#D4AF37] hover:opacity-90 text-black font-semibold border-transparent' : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isTrading ? "..." : hasValidToken ? "Buy" : "Paste"}
             </Button>
@@ -1038,10 +1135,10 @@ export function MobileTrading() {
       {/* Token Detail Modal */}
       {showTokenDetail && selectedToken && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowTokenDetail(false)}>
-          <div className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">{selectedToken.name}</h2>
-              <button onClick={() => setShowTokenDetail(false)} className="text-gray-400 hover:text-white">✕</button>
+              <button onClick={() => setShowTokenDetail(false)} className="text-gray-400 hover:text-white text-2xl leading-none">✕</button>
             </div>
             
             <div className="mb-6">
@@ -1086,56 +1183,169 @@ export function MobileTrading() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-white mb-3">Quick Buy</h3>
-                {showCustomBuyInput ? (
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      value={customBuyAmount}
-                      onChange={(e) => setCustomBuyAmount(e.target.value)}
-                      placeholder={`Enter amount in ${nativeSymbol}`}
-                      className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
-                      disabled={isTrading}
-                    />
-                    <Button
-                      onClick={handleCustomBuy}
-                      disabled={isTrading || !customBuyAmount}
-                      className="bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
-                    >
-                      {isTrading ? "..." : "Buy"}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowCustomBuyInput(false)
-                        setCustomBuyAmount("")
-                      }}
-                      className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
-                    >
-                      ✕
-                    </Button>
+              {/* Check if user has a position */}
+              {positions.find(p => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()) ? (
+                <>
+                  {/* Show both Buy and Sell options */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white mb-3">Buy More</h3>
+                      {showCustomBuyInput ? (
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            value={customBuyAmount}
+                            onChange={(e) => setCustomBuyAmount(e.target.value)}
+                            placeholder={`Amount in ${nativeSymbol}`}
+                            className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                            disabled={isTrading}
+                          />
+                          <Button
+                            onClick={handleCustomBuy}
+                            disabled={isTrading || !customBuyAmount}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                          >
+                            {isTrading ? "..." : "Buy"}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setShowCustomBuyInput(false)
+                              setCustomBuyAmount("")
+                            }}
+                            className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {selectedToken.buyAmounts.map((amount, index) => (
+                            <Button
+                              key={index}
+                              onClick={() => {
+                                if (amount.startsWith('X')) {
+                                  setShowCustomBuyInput(true)
+                                } else {
+                                  handleBuyWithAmount(amount)
+                                }
+                              }}
+                              disabled={isTrading}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
+                            >
+                              {isTrading ? "..." : amount.startsWith('X') ? `Custom` : amount}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-white mb-3">Sell Position</h3>
+                      {showCustomSellInput ? (
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            value={customSellAmount}
+                            onChange={(e) => setCustomSellAmount(e.target.value)}
+                            placeholder="Percentage (0-100)"
+                            className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                            disabled={isTrading}
+                          />
+                          <Button
+                            onClick={handleCustomSell}
+                            disabled={isTrading || !customSellAmount}
+                            className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                          >
+                            {isTrading ? "..." : "Sell"}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setShowCustomSellInput(false)
+                              setCustomSellAmount("")
+                            }}
+                            className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {selectedToken.sellAmounts.map((amount, index) => (
+                            <Button
+                              key={index}
+                              onClick={() => {
+                                if (amount === 'X') {
+                                  setShowCustomSellInput(true)
+                                } else {
+                                  handleSellWithAmount(amount)
+                                }
+                              }}
+                              disabled={isTrading}
+                              className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
+                            >
+                              {isTrading ? "..." : amount === 'X' ? 'Custom' : amount}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {selectedToken.buyAmounts.map((amount, index) => (
-                      <Button
-                        key={index}
-                        onClick={() => {
-                          if (amount.startsWith('X')) {
-                            setShowCustomBuyInput(true)
-                          } else {
-                            handleBuyWithAmount(amount)
-                          }
-                        }}
-                        disabled={isTrading}
-                        className="bg-[var(--brand-gold)] hover:opacity-90 text-black font-semibold rounded-lg h-12 disabled:opacity-50"
-                      >
-                        {isTrading ? "Processing..." : amount.startsWith('X') ? `Custom ${nativeSymbol}` : amount}
-                      </Button>
-                    ))}
+                </>
+              ) : (
+                <>
+                  {/* Show only Buy options for new tokens */}
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-white mb-3">Quick Buy</h3>
+                    {showCustomBuyInput ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          value={customBuyAmount}
+                          onChange={(e) => setCustomBuyAmount(e.target.value)}
+                          placeholder={`Amount in ${nativeSymbol}`}
+                          className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                          disabled={isTrading}
+                        />
+                        <Button
+                          onClick={handleCustomBuy}
+                          disabled={isTrading || !customBuyAmount}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                        >
+                          {isTrading ? "..." : "Buy"}
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowCustomBuyInput(false)
+                            setCustomBuyAmount("")
+                          }}
+                          className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedToken.buyAmounts.map((amount, index) => (
+                          <Button
+                            key={index}
+                            onClick={() => {
+                              if (amount.startsWith('X')) {
+                                setShowCustomBuyInput(true)
+                              } else {
+                                handleBuyWithAmount(amount)
+                              }
+                            }}
+                            disabled={isTrading}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 disabled:opacity-50"
+                          >
+                            {isTrading ? "..." : amount.startsWith('X') ? `Custom` : amount}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>
