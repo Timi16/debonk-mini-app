@@ -968,10 +968,10 @@ export default function MobileTrading() {
           <div
             key={notification.id}
             className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === 'success'
-                ? 'bg-green-500/90 text-white'
-                : notification.type === 'error'
-                  ? 'bg-red-500/90 text-white'
-                  : 'bg-blue-500/90 text-white'
+              ? 'bg-green-500/90 text-white'
+              : notification.type === 'error'
+                ? 'bg-red-500/90 text-white'
+                : 'bg-blue-500/90 text-white'
               }`}
           >
             {notification.message}
