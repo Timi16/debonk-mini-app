@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
-import { X } from "lucide-react"
+
 
 // Dynamically import WebApp only on client side
 let WebApp: any = null
