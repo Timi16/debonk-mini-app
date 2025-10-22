@@ -52,6 +52,12 @@ interface Position {
   updatedAt: string;
 }
 
+interface PositionWithPrice extends Position {
+  currentPrice?: number;
+  marketCap?: string;
+  priceChange24h?: number;
+}
+
 interface UserProfile {
   success: boolean;
   user: {
@@ -448,9 +454,10 @@ export default function MobileTrading() {
   const [selectedChain, setSelectedChain] = useState("solana")
   const [balance, setBalance] = useState(0)
   const [walletAddress, setWalletAddress] = useState("")
-  const [positions, setPositions] = useState<Position[]>([])
+  const [positions, setPositions] = useState<PositionWithPrice[]>([])
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [error, setError] = useState("")
+  const [loadingPositions, setLoadingPositions] = useState(false)
   const [showTokenDetail, setShowTokenDetail] = useState(false)
   const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(null)
   const [pasteError, setPasteError] = useState("")
@@ -472,7 +479,7 @@ export default function MobileTrading() {
     }, 3000)
   }
 
-  // Refresh data after trade
+  // Refresh data after trade and enrich with prices
   const refreshData = async () => {
     if (!client) return
     
@@ -483,34 +490,36 @@ export default function MobileTrading() {
       }
 
       const positionsData = await client.getPositionsByChain(selectedChain)
-      setPositions(positionsData)
       
-      // Load token details for the first position if exists
-      if (positionsData.length > 0) {
-        const firstPosition = positionsData[0]
-        const details = await client.getTokenDetails(firstPosition.chain, firstPosition.tokenAddress)
-        if (details.success) {
-          const token = details.token
-          setSelectedToken({
-            name: token.name,
-            symbol: token.symbol,
-            address: token.address,
-            pnlData: {
-              fiveMin: "0%",
-              oneHour: "0%",
-              twentyFourHours: "0%",
-            },
-            marketData: {
-              marketCap: formatMarketCap(token.marketCap),
-              liquidity: `$${token.liquidityInUsd.toLocaleString()}`,
-              price: `$${token.priceUsd.toFixed(4)}`,
-              volume24h: `$${(token.volume?.h24 || 0).toLocaleString()}`,
-            },
-            buyAmounts: [],
-            sellAmounts: [],
-          })
-        }
-      }
+      // Enrich positions with current prices and market data
+      const enrichedPositions = await Promise.all(
+        positionsData.map(async (position) => {
+          try {
+            const details = await client.getTokenDetails(position.chain, position.tokenAddress)
+            if (details.success) {
+              const formatMarketCap = (mc: number): string => {
+                if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+                if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+                if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
+                return `$${mc.toFixed(0)}`
+              }
+
+              return {
+                ...position,
+                currentPrice: details.token.priceUsd,
+                marketCap: formatMarketCap(details.token.marketCap),
+                priceChange24h: details.token.change?.h24
+              }
+            }
+            return position
+          } catch (err) {
+            console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
+            return position
+          }
+        })
+      )
+      
+      setPositions(enrichedPositions)
     } catch (err) {
       console.error("Error refreshing data:", err)
     }
@@ -635,7 +644,7 @@ export default function MobileTrading() {
   }
 
   // Handle position card click
-  const handlePositionClick = async (position: Position) => {
+  const handlePositionClick = async (position: PositionWithPrice) => {
     if (!client || isTrading) return
 
     showNotification("Loading token details...", "info")
@@ -735,7 +744,36 @@ export default function MobileTrading() {
         }
 
         const positionsData = await newClient.getPositionsByChain("solana")
-        setPositions(positionsData)
+        
+        // Enrich positions with current prices
+        const enrichedPositions = await Promise.all(
+          positionsData.map(async (position) => {
+            try {
+              const details = await newClient.getTokenDetails(position.chain, position.tokenAddress)
+              if (details.success) {
+                const formatMarketCap = (mc: number): string => {
+                  if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+                  if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+                  if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
+                  return `$${mc.toFixed(0)}`
+                }
+
+                return {
+                  ...position,
+                  currentPrice: details.token.priceUsd,
+                  marketCap: formatMarketCap(details.token.marketCap),
+                  priceChange24h: details.token.change?.h24
+                }
+              }
+              return position
+            } catch (err) {
+              console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
+              return position
+            }
+          })
+        )
+        
+        setPositions(enrichedPositions)
 
         const addressData = await newClient.getWalletAddress("solana")
         if (addressData.success) {
@@ -759,6 +797,7 @@ export default function MobileTrading() {
     if (!client) return
 
     const updateChainData = async () => {
+      setLoadingPositions(true)
       try {
         const balanceData = await client.getBalance(selectedChain)
         if (balanceData.success) {
@@ -766,7 +805,36 @@ export default function MobileTrading() {
         }
 
         const positionsData = await client.getPositionsByChain(selectedChain)
-        setPositions(positionsData)
+        
+        // Enrich positions with current prices and market data
+        const enrichedPositions = await Promise.all(
+          positionsData.map(async (position) => {
+            try {
+              const details = await client.getTokenDetails(position.chain, position.tokenAddress)
+              if (details.success) {
+                const formatMarketCap = (mc: number): string => {
+                  if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+                  if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+                  if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
+                  return `$${mc.toFixed(0)}`
+                }
+
+                return {
+                  ...position,
+                  currentPrice: details.token.priceUsd,
+                  marketCap: formatMarketCap(details.token.marketCap),
+                  priceChange24h: details.token.change?.h24
+                }
+              }
+              return position
+            } catch (err) {
+              console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
+              return position
+            }
+          })
+        )
+        
+        setPositions(enrichedPositions)
 
         const addressData = await client.getWalletAddress(selectedChain)
         if (addressData.success) {
@@ -774,6 +842,8 @@ export default function MobileTrading() {
         }
       } catch (err) {
         console.error("Error updating chain data:", err)
+      } finally {
+        setLoadingPositions(false)
       }
     }
 
@@ -850,9 +920,9 @@ export default function MobileTrading() {
             },
             marketData: {
               marketCap: formatMarketCap(token.marketCap),
-              liquidity: `$${token.liquidityInUsd.toLocaleString()}`,
-              price: `$${token.priceUsd.toFixed(4)}`,
-              volume24h: `$${h24Volume.toLocaleString()}`,
+              liquidity: `${token.liquidityInUsd.toLocaleString()}`,
+              price: `${token.priceUsd.toFixed(4)}`,
+              volume24h: `${h24Volume.toLocaleString()}`,
             },
             buyAmounts,
             sellAmounts,
@@ -888,13 +958,6 @@ export default function MobileTrading() {
         <div className="text-red-400">{error}</div>
       </div>
     )
-  }
-
-  // Format market cap
-  const formatMarketCap = (mc: number): string => {
-    if (mc >= 1e9) return `${(mc / 1e9).toFixed(1)}B`
-    if (mc >= 1e6) return `${(mc / 1e6).toFixed(1)}M`
-    return mc.toLocaleString()
   }
 
   return (
@@ -1031,36 +1094,72 @@ export default function MobileTrading() {
         </div>
 
         <div className="space-y-3 mb-6">
-          {positions.length === 0 ? (
+          {loadingPositions ? (
+            <div className="text-center text-gray-400 py-8">Loading positions...</div>
+          ) : positions.length === 0 ? (
             <div className="text-center text-gray-400 py-8">No positions yet</div>
           ) : (
-            positions.map((position) => (
-              <div 
-                key={position.id} 
-                className="bg-[#111111] border border-[#252525] rounded-2xl p-4 hover:bg-[#151515] transition-colors"
-              >
-                <div className="flex flex-col space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-base font-semibold text-white">${position.tokenTicker}</div>
-                    <span className="text-sm text-gray-400">MC: ${selectedToken?.marketData?.marketCap || '...'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-300">
-                      {parseFloat(position.amountHeld).toFixed(4)} {position.tokenTicker}
+            positions.map((position) => {
+              const positionValue = position.currentPrice 
+                ? parseFloat(position.amountHeld) * position.currentPrice 
+                : 0
+              const pnl = position.currentPrice
+                ? (position.currentPrice - parseFloat(position.avgBuyPrice)) * parseFloat(position.amountHeld)
+                : 0
+              const pnlPercent = position.currentPrice
+                ? ((position.currentPrice - parseFloat(position.avgBuyPrice)) / parseFloat(position.avgBuyPrice)) * 100
+                : 0
+
+              return (
+                <div 
+                  key={position.id} 
+                  onClick={() => handlePositionClick(position)}
+                  className="bg-[#111111] border border-[#252525] rounded-2xl p-4 cursor-pointer hover:bg-[#151515] transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex flex-col">
+                      <div className="text-base font-semibold text-white mb-1">${position.tokenTicker}</div>
+                      {position.marketCap && (
+                        <div className="text-xs text-gray-400">MC: {position.marketCap}</div>
+                      )}
                     </div>
-                    <Button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSellWithAmount("100");
-                      }}
-                      className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs px-3 py-1 h-8 rounded-lg"
-                    >
-                      Sell
-                    </Button>
+                    <div className="flex flex-col items-end">
+                      {position.currentPrice && (
+                        <div className="text-sm font-semibold text-white mb-1">
+                          ${positionValue.toFixed(2)}
+                        </div>
+                      )}
+                      {position.priceChange24h !== undefined && (
+                        <div className={`text-xs font-medium ${position.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {position.priceChange24h >= 0 ? '+' : ''}{position.priceChange24h.toFixed(2)}%
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
+                      {parseFloat(position.amountHeld).toFixed(2)} tokens
+                    </span>
+                    <span className="px-2 py-1 rounded-full text-[10px] leading-none bg-[#1E1E1E] text-gray-300 border border-[#2A2A2A]">
+                      Avg: ${parseFloat(position.avgBuyPrice).toFixed(4)}
+                    </span>
+                  </div>
+                  {position.currentPrice && (
+                    <div className="flex items-center justify-between pt-2 border-t border-[#1A1A1A]">
+                      <span className="text-xs text-gray-400">P&L:</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                        </span>
+                        <span className={`text-xs ${pnlPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
