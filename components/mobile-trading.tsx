@@ -687,8 +687,14 @@ export default function MobileTrading() {
   const handleCustomSell = async () => {
     const amount = Number.parseFloat(customSellAmount)
 
-    if (isNaN(amount) || amount <= 0 || amount > 100) {
-      showNotification("Please enter a valid percentage (0-100)", "error")
+    if (isNaN(amount) || amount <= 0) {
+      showNotification("Please enter a valid amount", "error")
+      return
+    }
+
+    // For custom sell, treat it as a percentage (0-100)
+    if (amount > 100) {
+      showNotification("Please enter a percentage between 0-100", "error")
       return
     }
 
@@ -726,8 +732,8 @@ export default function MobileTrading() {
         const currentChain = chains.find((c) => c.key === position.chain)
         const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
 
-        const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
-        const sellAmounts = [`10%`, `50%`, `75%`, `100%`]
+        const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `X ${nativeSymbol}`]
+        const sellAmounts = [`50%`, `100%`, `X`]
 
         setSelectedToken({
           name: token.name,
@@ -964,8 +970,11 @@ export default function MobileTrading() {
           const h24Change = token.change?.h24 ?? 0
           const h24Volume = token.volume?.h24 ?? 0
 
-          const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `1 ${nativeSymbol}`, `X ${nativeSymbol}`]
-          const sellAmounts = [`10%`, `50%`, `75%`, `100%`]
+          const currentChain = chains.find((c) => c.key === selectedChain)
+          const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
+
+          const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `X ${nativeSymbol}`]
+          const sellAmounts = [`50%`, `100%`, `X`]
 
           setSelectedToken({
             name: token.name,
@@ -1453,7 +1462,7 @@ export default function MobileTrading() {
                           type="number"
                           value={customSellAmount}
                           onChange={(e) => setCustomSellAmount(e.target.value)}
-                          placeholder="Percentage (0-100)"
+                          placeholder="Amount to sell"
                           className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
                           disabled={isTrading}
                         />
