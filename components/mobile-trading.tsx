@@ -430,7 +430,7 @@ interface Notification {
 
 export default function MobileTrading() {
   const [activeTab, setActiveTab] = useState("home")
-  const [mode, setMode] = useState<"demo" | "live">("demo")
+  const [mode, setMode] = useState<"live" | "demo">("live")
   const [tokenInput, setTokenInput] = useState("")
   const [client, setClient] = useState<MiniAppClient | null>(null)
   const [loading, setLoading] = useState(true)
