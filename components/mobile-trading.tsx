@@ -1101,33 +1101,26 @@ export default function MobileTrading() {
           ) : (
             positions.map((position) => {
               const priceChange24h = position.priceChange24h ?? 0
+              const positionValue = position.currentPrice 
+                ? parseFloat(position.amountHeld) * position.currentPrice 
+                : 0
 
               return (
                 <div 
                   key={position.id} 
                   className="bg-[#111111] border border-[#252525] rounded-2xl p-4"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <div 
-                      className="flex flex-col flex-1 cursor-pointer"
+                      className="flex items-center gap-2 flex-1 cursor-pointer"
                       onClick={() => handlePositionClick(position)}
                     >
-                      <div className="text-base font-semibold text-white mb-1">${position.tokenTicker}</div>
-                      <div className="flex items-center gap-3">
-                        {position.marketCap && (
-                          <span className="text-xs text-gray-400">MC {position.marketCap}</span>
-                        )}
-                        {position.currentPrice && (
-                          <span className={`text-xs font-medium ${priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            ${position.currentPrice.toFixed(4)}
-                          </span>
-                        )}
-                        {position.priceChange24h !== undefined && (
-                          <span className={`text-xs font-medium ${priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
-                          </span>
-                        )}
-                      </div>
+                      <div className="text-base font-semibold text-white">${position.tokenTicker}</div>
+                      {position.priceChange24h !== undefined && (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${priceChange24h >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+                        </span>
+                      )}
                     </div>
                     <Button
                       onClick={(e) => {
@@ -1139,6 +1132,24 @@ export default function MobileTrading() {
                     >
                       Sell 100%
                     </Button>
+                  </div>
+                  <div 
+                    className="flex items-center gap-3 cursor-pointer"
+                    onClick={() => handlePositionClick(position)}
+                  >
+                    {position.marketCap && (
+                      <span className="text-xs text-gray-400">MC {position.marketCap}</span>
+                    )}
+                    {position.currentPrice && (
+                      <span className="text-xs text-gray-300">
+                        ${position.currentPrice.toFixed(4)}
+                      </span>
+                    )}
+                    {positionValue > 0 && (
+                      <span className="text-xs font-semibold text-white">
+                        ${positionValue.toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 </div>
               )
