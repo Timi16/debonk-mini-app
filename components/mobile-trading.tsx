@@ -361,6 +361,9 @@ export default function MobileTrading() {
 
         const telegramId = WebApp.initDataUnsafe?.user?.id
 
+        // Get the raw initData string for authentication
+        const initData = WebApp.initData
+
         if (!telegramId) {
           console.error("Could not extract Telegram ID")
           setError("Could not get Telegram ID from SDK")
@@ -368,8 +371,18 @@ export default function MobileTrading() {
           return
         }
 
+        if (!initData) {
+          console.error("Could not extract initData")
+          setError("Could not get initData from SDK")
+          setLoading(false)
+          return
+        }
+
         console.log("✓ Got Telegram ID:", telegramId)
-        const newClient = new MiniAppClient(telegramId.toString())
+        console.log("✓ Got initData length:", initData.length)
+
+        // Pass both telegramId and initData to the client
+        const newClient = new MiniAppClient(telegramId.toString(), initData)
         setClient(newClient)
 
         // Load chains
@@ -620,13 +633,12 @@ export default function MobileTrading() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
-              notification.type === "success"
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === "success"
                 ? "bg-green-500/90 text-white"
                 : notification.type === "error"
                   ? "bg-red-500/90 text-white"
                   : "bg-blue-500/90 text-white"
-            }`}
+              }`}
           >
             {notification.message}
           </div>
