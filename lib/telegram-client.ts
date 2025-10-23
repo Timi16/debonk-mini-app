@@ -12,19 +12,26 @@ import type {
 export class MiniAppClient {
   private telegramId: string
   private backendUrl: string
+  private initData: string
 
-  constructor(telegramId: string, backendUrl = "https://exanthematic-anneliese-friskingly.ngrok-free.dev") {
+  constructor(telegramId: string, initData: string, backendUrl = "https://exanthematic-anneliese-friskingly.ngrok-free.dev") {
     this.telegramId = telegramId
+    this.initData = initData
     this.backendUrl = backendUrl
+  }
+
+  private getHeaders(): Record<string, string> {
+    return {
+      "ngrok-skip-browser-warning": "true",
+      "Content-Type": "application/json",
+      "x-telegram-init-data": this.initData,
+    }
   }
 
   async getUserProfile(): Promise<UserProfile> {
     try {
       const res = await fetch(`${this.backendUrl}/api/user/${this.telegramId}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
@@ -37,10 +44,7 @@ export class MiniAppClient {
   async getAvailableChains(): Promise<Chain[]> {
     try {
       const res = await fetch(`${this.backendUrl}/api/chains`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -54,10 +58,7 @@ export class MiniAppClient {
   async getBalance(chain: string): Promise<Balance> {
     try {
       const res = await fetch(`${this.backendUrl}/api/balance/${this.telegramId}/${chain}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
@@ -70,10 +71,7 @@ export class MiniAppClient {
   async getTokenBalance(chain: string, tokenAddress: string): Promise<Balance> {
     try {
       const res = await fetch(`${this.backendUrl}/api/balance/${this.telegramId}/${chain}/${tokenAddress}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
@@ -86,10 +84,7 @@ export class MiniAppClient {
   async getWalletAddress(chain: string): Promise<WalletAddress> {
     try {
       const res = await fetch(`${this.backendUrl}/api/wallet/${this.telegramId}/${chain}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
@@ -102,10 +97,7 @@ export class MiniAppClient {
   async getAllPositions(): Promise<Position[]> {
     try {
       const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -119,10 +111,7 @@ export class MiniAppClient {
   async getPositionsByChain(chain: string): Promise<Position[]> {
     try {
       const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}/chain/${chain}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -136,10 +125,7 @@ export class MiniAppClient {
   async getActiveCompetitionPositions(): Promise<Position[]> {
     try {
       const res = await fetch(`${this.backendUrl}/api/positions/${this.telegramId}/active-competition`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) {
         if (res.status === 404) return []
@@ -156,10 +142,7 @@ export class MiniAppClient {
   async getTokenDetails(chain: string, contractAddress: string): Promise<TokenDetails> {
     try {
       const res = await fetch(`${this.backendUrl}/api/token/${chain}/${contractAddress}`, {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
@@ -173,10 +156,7 @@ export class MiniAppClient {
     try {
       const res = await fetch(`${this.backendUrl}/api/trade/buy/${this.telegramId}/${chain}`, {
         method: "POST",
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           tokenAddress,
           amountInNative,
@@ -215,10 +195,7 @@ export class MiniAppClient {
     try {
       const res = await fetch(`${this.backendUrl}/api/trade/sell/${this.telegramId}/${chain}`, {
         method: "POST",
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           tokenAddress,
           percentToSell,
