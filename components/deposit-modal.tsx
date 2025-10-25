@@ -111,7 +111,13 @@ export function DepositModal({ isOpen, onClose, walletAddress, chainName, chainK
           {/* Address Display */}
           <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A] mb-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-mono text-white break-all">{walletAddress}</p>
+              <button
+                onClick={handleCopyAddress}
+                className="text-sm font-mono text-white break-all hover:text-[#D4AF37] transition-colors text-left"
+                title="Click to copy address"
+              >
+                {walletAddress}
+              </button>
               <button
                 onClick={handleCopyAddress}
                 className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
