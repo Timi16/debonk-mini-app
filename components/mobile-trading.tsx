@@ -1160,23 +1160,23 @@ export default function MobileTrading() {
         </div>
       )}
 
-      {/* Withdraw Modal */}
-      <WithdrawModal
-        isOpen={showWithdrawModal}
-        onClose={() => setShowWithdrawModal(false)}
-        walletAddress={walletAddress}
-        chainName={currentChain?.name || "Solana"}
-        balance={balance}
-        nativeSymbol={nativeSymbol}
-        nativePrice={nativePrice}
-      />
-
       <DepositModal
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
         walletAddress={walletAddress}
         chainName={currentChain?.name || "Solana"}
         chainKey={selectedChain}
+      />
+
+      <WithdrawModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        walletAddress={walletAddress}
+        chainName={currentChain?.name || "Solana"}
+        chainKey={selectedChain}
+        balance={balance}
+        nativePrice={nativePrice}
+        nativeSymbol={nativeSymbol}
       />
     </div>
   )
