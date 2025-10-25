@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { MiniAppClient } from "@/lib/telegram-client"
 import { DepositModal } from "./deposit-modal"
+import { WithdrawModal } from "./withdraw-modal"
 import type { Chain, PositionWithPrice, UserProfile, SelectedToken, Notification } from "@/lib/types"
 
 // Dynamically import WebApp only on client side
@@ -41,6 +42,7 @@ export default function MobileTrading() {
   const [showCustomSellInput, setShowCustomSellInput] = useState(false)
   const [customSellAmount, setCustomSellAmount] = useState("")
   const [showDepositModal, setShowDepositModal] = useState(false)
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -722,7 +724,10 @@ export default function MobileTrading() {
             <p className="text-sm text-red-400/90 mb-6">▼ 32.95%</p>
 
             <div className="flex gap-3">
-              <Button className="flex-1 bg-[#D4AF37] hover:opacity-90 text-black font-semibold rounded-xl h-11">
+              <Button
+                onClick={() => setShowWithdrawModal(true)}
+                className="flex-1 bg-[#D4AF37] hover:opacity-90 text-black font-semibold rounded-xl h-11"
+              >
                 Withdraw
               </Button>
               <Button
@@ -1154,6 +1159,17 @@ export default function MobileTrading() {
           </div>
         </div>
       )}
+
+      {/* Withdraw Modal */}
+      <WithdrawModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        walletAddress={walletAddress}
+        chainName={currentChain?.name || "Solana"}
+        balance={balance}
+        nativeSymbol={nativeSymbol}
+        nativePrice={nativePrice}
+      />
 
       <DepositModal
         isOpen={showDepositModal}
