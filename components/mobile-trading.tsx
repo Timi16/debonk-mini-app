@@ -600,13 +600,12 @@ export default function MobileTrading() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
-              notification.type === "success"
-                ? "bg-green-500/90 text-white"
-                : notification.type === "error"
-                  ? "bg-red-500/90 text-white"
-                  : "bg-blue-500/90 text-white"
-            }`}
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === "success"
+              ? "bg-green-500/90 text-white"
+              : notification.type === "error"
+                ? "bg-red-500/90 text-white"
+                : "bg-blue-500/90 text-white"
+              }`}
           >
             {notification.message}
           </div>
@@ -1177,6 +1176,7 @@ export default function MobileTrading() {
         balance={balance}
         nativePrice={nativePrice}
         nativeSymbol={nativeSymbol}
+        telegramClient={client!} // Use non-null assertion since modal only shows when client exists
       />
     </div>
   )

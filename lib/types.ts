@@ -1,3 +1,5 @@
+import { MiniAppClient } from "./telegram-client"
+
 export interface Chain {
   key: string
   name: string
@@ -148,3 +150,17 @@ export interface Notification {
   message: string
   type: "success" | "error" | "info"
 }
+
+export interface WithdrawModalProps {
+  isOpen: boolean
+  onClose: () => void
+  walletAddress: string
+  chainName: string
+  chainKey: string
+  balance: number
+  nativePrice: number
+  nativeSymbol: string
+  telegramClient: MiniAppClient
+}
+
+export type WithdrawStep = "amount" | "confirm" | "success" | "error"
