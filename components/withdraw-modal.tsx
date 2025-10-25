@@ -222,7 +222,7 @@ export function WithdrawModal({
                   onClick={() => setShowCustomAddress(true)}
                   className="w-full p-4 rounded-xl border border-dashed border-[#2A2A2A] hover:border-[#3A3A3A] transition-colors text-center"
                 >
-                  <div className="text-sm text-gray-400">+ Add Custom Address</div>
+                  <div className="text-sm text-gray-400">+ Add Address</div>
                 </button>
               )}
             </div>
