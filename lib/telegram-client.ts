@@ -234,6 +234,146 @@ export class MiniAppClient {
     }
   }
 
+   async getDemoBalance(chain: string): Promise<{ success: boolean; demoBalance: string; nativeToken: string }> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/demo/balance/${this.telegramId}/${chain}`, {
+        headers: this.getHeaders(),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (error) {
+      console.error(`getDemoBalance error for ${chain}:`, error)
+      throw error
+    }
+  }
+
+  async getDemoPositions(chain: string): Promise<any> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/demo/positions/${this.telegramId}/${chain}`, {
+        headers: this.getHeaders(),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (error) {
+      console.error(`getDemoPositions error for ${chain}:`, error)
+      throw error
+    }
+  }
+
+  async demoBuyToken(chain: string, tokenAddress: string, amountInNative: number): Promise<any> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/demo/buy/${this.telegramId}/${chain}`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          tokenAddress,
+          amountInNative,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+          telegramId: this.telegramId,
+          chain,
+          tokenAddress,
+          amountInNative,
+        }
+      }
+
+      return data
+    } catch (error) {
+      console.error(`demoBuyToken error for ${tokenAddress} on ${chain}:`, error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        telegramId: this.telegramId,
+        chain,
+        tokenAddress,
+        amountInNative,
+      }
+    }
+  }
+
+  async demoSellToken(chain: string, tokenAddress: string, percentToSell: number): Promise<any> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/demo/sell/${this.telegramId}/${chain}`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          tokenAddress,
+          percentToSell,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+          telegramId: this.telegramId,
+          chain,
+          tokenAddress,
+          percentToSell,
+        }
+      }
+
+      return data
+    } catch (error) {
+      console.error(`demoSellToken error for ${tokenAddress} on ${chain}:`, error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        telegramId: this.telegramId,
+        chain,
+        tokenAddress,
+        percentToSell,
+      }
+    }
+  }
+
+  async withdraw(chain: string, amount: number, destinationAddress: string): Promise<any> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/withdraw/${this.telegramId}/${chain}`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          amount,
+          destinationAddress,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+          telegramId: this.telegramId,
+          chain,
+          amount,
+          destinationAddress,
+        }
+      }
+
+      return data
+    } catch (error) {
+      console.error(`withdraw error for ${chain}:`, error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        telegramId: this.telegramId,
+        chain,
+        amount,
+        destinationAddress,
+      }
+    }
+  }
+
   formatBalance(balance: number, decimals = 2): string {
     return balance.toFixed(decimals)
   }
