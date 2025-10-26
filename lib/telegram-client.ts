@@ -7,12 +7,14 @@ import type {
   TokenDetails,
   BuyResponse,
   SellResponse,
+  BalanceHistory,
 } from "./types"
 
 export class MiniAppClient {
   private telegramId: string
   private backendUrl: string
   private initData: string
+  private balanceHistory: Map<string, BalanceHistory[]> = new Map()
 
   constructor(
     telegramId: string,
@@ -22,6 +24,7 @@ export class MiniAppClient {
     this.telegramId = telegramId
     this.initData = initData
     this.backendUrl = backendUrl
+    this.loadBalanceHistory()
   }
 
   private getHeaders(): Record<string, string> {
@@ -30,6 +33,93 @@ export class MiniAppClient {
       "Content-Type": "application/json",
       "x-telegram-init-data": this.initData,
     }
+  }
+
+  private loadBalanceHistory() {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`balance_history_${this.telegramId}`)
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          this.balanceHistory = new Map(Object.entries(parsed))
+        }
+      } catch (error) {
+        console.error("Failed to load balance history:", error)
+      }
+    }
+  }
+
+  private saveBalanceHistory() {
+    if (typeof window !== "undefined") {
+      try {
+        const obj = Object.fromEntries(this.balanceHistory)
+        localStorage.setItem(`balance_history_${this.telegramId}`, JSON.stringify(obj))
+      } catch (error) {
+        console.error("Failed to save balance history:", error)
+      }
+    }
+  }
+
+  recordBalanceSnapshot(chain: string, balance: number, usdValue: number) {
+    const history = this.balanceHistory.get(chain) || []
+    const now = Date.now()
+    
+    // Add new snapshot
+    history.push({ timestamp: now, balance, usdValue })
+    
+    // Keep only last 100 snapshots and remove entries older than 30 days
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
+    const filtered = history
+      .filter(h => h.timestamp > thirtyDaysAgo)
+      .slice(-100)
+    
+    this.balanceHistory.set(chain, filtered)
+    this.saveBalanceHistory()
+  }
+
+  getBalanceChange(chain: string, timeframeMs: number): {
+    changeAmount: number
+    changePercent: number
+    hasData: boolean
+  } {
+    const history = this.balanceHistory.get(chain) || []
+    if (history.length < 2) {
+      return { changeAmount: 0, changePercent: 0, hasData: false }
+    }
+
+    const now = Date.now()
+    const targetTime = now - timeframeMs
+    
+    // Get current balance (most recent)
+    const current = history[history.length - 1]
+    
+    // Find closest balance to target time
+    let closest = history[0]
+    let minDiff = Math.abs(closest.timestamp - targetTime)
+    
+    for (const snapshot of history) {
+      const diff = Math.abs(snapshot.timestamp - targetTime)
+      if (diff < minDiff) {
+        minDiff = diff
+        closest = snapshot
+      }
+    }
+    
+    // Calculate change
+    const changeAmount = current.usdValue - closest.usdValue
+    const changePercent = closest.usdValue !== 0 
+      ? (changeAmount / closest.usdValue) * 100 
+      : 0
+    
+    return { changeAmount, changePercent, hasData: true }
+  }
+
+  get24HourBalanceChange(chain: string) {
+    return this.getBalanceChange(chain, 24 * 60 * 60 * 1000)
+  }
+
+  getHourBalanceChange(chain: string) {
+    return this.getBalanceChange(chain, 60 * 60 * 1000)
   }
 
   async getUserProfile(): Promise<UserProfile> {
@@ -234,7 +324,7 @@ export class MiniAppClient {
     }
   }
 
-   async getDemoBalance(chain: string): Promise<{ success: boolean; demoBalance: string; nativeToken: string }> {
+  async getDemoBalance(chain: string): Promise<{ success: boolean; demoBalance: string; nativeToken: string }> {
     try {
       const res = await fetch(`${this.backendUrl}/api/demo/balance/${this.telegramId}/${chain}`, {
         headers: this.getHeaders(),

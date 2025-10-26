@@ -43,7 +43,7 @@ export default function MobileTrading() {
   const [customSellAmount, setCustomSellAmount] = useState("")
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
-
+  const [balanceChange24h, setBalanceChange24h] = useState({ changeAmount: 0, changePercent: 0, hasData: false })
   // Show notification
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
     const id = Math.random().toString(36).substr(2, 9)
@@ -53,6 +53,13 @@ export default function MobileTrading() {
     }, 3000)
   }
 
+  const updateBalanceChange = (chainKey: string, currentBalance: number, currentPrice: number) => {
+    if (!client) return
+    const usdValue = currentBalance * currentPrice
+    client.recordBalanceSnapshot(chainKey, currentBalance, usdValue)
+    const change = client.get24HourBalanceChange(chainKey)
+    setBalanceChange24h(change)
+  }
   // Fetch native token price from server API (secure)
   const fetchNativePrice = async (chainKey: string) => {
     try {
@@ -74,6 +81,7 @@ export default function MobileTrading() {
       }
 
       setNativePrice(data.price)
+      return data.price  // ADD THIS at the end of fetchNativePrice
     } catch (err) {
       console.error("Error fetching native token price:", err)
       setNativePrice(150)
@@ -91,7 +99,11 @@ export default function MobileTrading() {
       }
 
       // Fetch updated native price
-      await fetchNativePrice(selectedChain)
+      const price = await fetchNativePrice(selectedChain)  // Change existing line
+      // ADD this next line:
+      if (price && balanceData.success) {
+        updateBalanceChange(selectedChain, balanceData.balance, price)
+      }
 
       const positionsData = await client.getPositionsByChain(selectedChain)
 
@@ -720,7 +732,12 @@ export default function MobileTrading() {
                 />
               </button>
             </div>
-            <p className="text-sm text-red-400/90 mb-6">▼ 32.95%</p>
+
+            {balanceChange24h.hasData && (
+              <p className={`text-sm font-semibold mb-6 ${balanceChange24h.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {balanceChange24h.changePercent >= 0 ? '▲' : '▼'} {Math.abs(balanceChange24h.changePercent).toFixed(2)}% (24h)
+              </p>
+            )}
 
             <div className="flex gap-3">
               <Button
