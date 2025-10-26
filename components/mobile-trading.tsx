@@ -160,9 +160,12 @@ export default function MobileTrading() {
 
       const positionsData = await client.getPositionsByChain(chainKey)
 
+      // 🔥 FIX: Filter out demo positions on frontend
+      const livePositionsOnly = positionsData.filter(p => !p.isSimulation)
+
       // Enrich positions with current prices and market data
       const enrichedPositions = await Promise.all(
-        positionsData.map(async (position) => {
+        livePositionsOnly.map(async (position) => {
           try {
             const details = await client.getTokenDetails(position.chain, position.tokenAddress)
             if (details.success) {
@@ -717,13 +720,12 @@ export default function MobileTrading() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
-              notification.type === "success"
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === "success"
                 ? "bg-green-500/90 text-white"
                 : notification.type === "error"
                   ? "bg-red-500/90 text-white"
                   : "bg-blue-500/90 text-white"
-            }`}
+              }`}
           >
             {notification.message}
           </div>
