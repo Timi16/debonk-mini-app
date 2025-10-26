@@ -23,6 +23,14 @@ export interface Balance {
   type: "native" | "token"
   error?: string
 }
+export interface DemoBalance {
+  success: boolean
+  telegramId: string
+  chain: string
+  demoBalance: string
+  demoBalanceUsd: string
+  nativeToken: string
+}
 
 export interface Position {
   id: string
