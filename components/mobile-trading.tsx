@@ -43,6 +43,8 @@ export default function MobileTrading() {
   const [customSellAmount, setCustomSellAmount] = useState("")
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [initialBalance, setInitialBalance] = useState(0)
+  const [balancePriceChange, setBalancePriceChange] = useState(0)
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -51,6 +53,11 @@ export default function MobileTrading() {
     setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id))
     }, 3000)
+  }
+
+  const calculateBalancePriceChange = (currentBalance: number, initialBal: number) => {
+    if (initialBal === 0) return 0
+    return ((currentBalance - initialBal) / initialBal) * 100
   }
 
   // Fetch native token price from server API (secure)
@@ -88,6 +95,8 @@ export default function MobileTrading() {
       const balanceData = await client.getBalance(selectedChain)
       if (balanceData.success) {
         setBalance(balanceData.balance)
+        const priceChange = calculateBalancePriceChange(balanceData.balance, initialBalance)
+        setBalancePriceChange(priceChange)
       }
 
       // Fetch updated native price
@@ -364,6 +373,8 @@ export default function MobileTrading() {
         const balanceData = await newClient.getBalance("solana")
         if (balanceData.success) {
           setBalance(balanceData.balance)
+          setInitialBalance(balanceData.balance)
+          setBalancePriceChange(0)
         }
 
         // Fetch initial native price
@@ -428,6 +439,8 @@ export default function MobileTrading() {
         const balanceData = await client.getBalance(selectedChain)
         if (balanceData.success) {
           setBalance(balanceData.balance)
+          const priceChange = calculateBalancePriceChange(balanceData.balance, initialBalance)
+          setBalancePriceChange(priceChange)
         }
 
         // Fetch native price for the new chain
@@ -477,7 +490,7 @@ export default function MobileTrading() {
     }
 
     updateChainData()
-  }, [selectedChain, client])
+  }, [selectedChain, client, initialBalance])
 
   const handleCopyAddress = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard && walletAddress) {
@@ -600,12 +613,13 @@ export default function MobileTrading() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === "success"
-              ? "bg-green-500/90 text-white"
-              : notification.type === "error"
-                ? "bg-red-500/90 text-white"
-                : "bg-blue-500/90 text-white"
-              }`}
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+              notification.type === "success"
+                ? "bg-green-500/90 text-white"
+                : notification.type === "error"
+                  ? "bg-red-500/90 text-white"
+                  : "bg-blue-500/90 text-white"
+            }`}
           >
             {notification.message}
           </div>
@@ -720,7 +734,11 @@ export default function MobileTrading() {
                 />
               </button>
             </div>
-            <p className="text-sm text-red-400/90 mb-6">▼ 32.95%</p>
+            <p
+              className={`text-sm font-semibold mb-6 flex items-center gap-1 ${balancePriceChange >= 0 ? "text-emerald-400" : "text-red-400"}`}
+            >
+              {balancePriceChange >= 0 ? "▲" : "▼"} {Math.abs(balancePriceChange).toFixed(2)}%
+            </p>
 
             <div className="flex gap-3">
               <Button
