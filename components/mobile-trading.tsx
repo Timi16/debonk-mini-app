@@ -381,6 +381,45 @@ export default function MobileTrading() {
     }
   }
 
+  const handleSellPositionDirectly = async (position: PositionWithPrice, amountStr: string) => {
+    if (!client || isTrading) return
+
+    let percent: number
+    if (amountStr.includes("%")) {
+      percent = Number.parseFloat(amountStr.replace("%", ""))
+    } else {
+      percent = Number.parseFloat(amountStr)
+    }
+
+    if (isNaN(percent) || percent <= 0 || percent > 100) {
+      showNotification("Invalid sell amount (must be between 0-100%)", "error")
+      return
+    }
+
+    setIsTrading(true)
+    setIsTradingId(position.id)
+    showNotification(`Processing sell ${percent}% transaction...`, "info")
+
+    try {
+      const result =
+        mode === "demo"
+          ? await client.demoSellToken(position.chain, position.tokenAddress, percent)
+          : await client.sellToken(position.chain, position.tokenAddress, percent, 0.5)
+
+      if (result.success) {
+        showNotification("Sell transaction successful!", "success")
+        await refreshData()
+      } else {
+        showNotification(`Sell failed: ${result.error}`, "error")
+      }
+    } catch (err) {
+      showNotification(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
+    } finally {
+      setIsTrading(false)
+      setIsTradingId("")
+    }
+  }
+
   // Initialize client and load data
   useEffect(() => {
     const initializeMiniApp = async () => {
@@ -565,12 +604,14 @@ export default function MobileTrading() {
           const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
           setInitialBalance(demoBalanceNum)
           setBalancePriceChange(0)
+          setDemoBalance(demoBalanceNum)
         }
       } else {
         const balanceData = await client.getBalance(selectedChain)
         if (balanceData.success) {
           setInitialBalance(balanceData.balance)
           setBalancePriceChange(0)
+          setBalance(balanceData.balance)
         }
       }
     }
@@ -885,13 +926,9 @@ export default function MobileTrading() {
                     <Button
                       onClick={async (e) => {
                         e.stopPropagation()
-                        if (!client || isTrading) return
-
-                        setTimeout(() => {
-                          handleSellWithAmount("100%")
-                        }, 100)
+                        await handleSellPositionDirectly(position, "100%")
                       }}
-                      disabled={isTrading || isTradingId === position.id}
+                      disabled={isTrading && isTradingId === position.id}
                       className="bg-[#3A3A3A] hover:bg-[#444444] text-white font-medium rounded-full px-4 h-9 text-xs disabled:opacity-50"
                     >
                       {isTrading && isTradingId === position.id ? "..." : "Sell 100%"}
