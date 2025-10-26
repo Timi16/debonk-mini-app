@@ -47,8 +47,6 @@ export default function MobileTrading() {
   const [balancePriceChange, setBalancePriceChange] = useState(0)
   const [demoBalance, setDemoBalance] = useState(0)
   const [demoPositions, setDemoPositions] = useState<PositionWithPrice[]>([])
-  const [demoInitialBalance, setDemoInitialBalance] = useState(0)
-  const [liveInitialBalance, setLiveInitialBalance] = useState(0)
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -100,10 +98,10 @@ export default function MobileTrading() {
       if (demoBalanceData.success) {
         const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
         setDemoBalance(demoBalanceNum)
-        if (demoInitialBalance === 0) {
-          setDemoInitialBalance(demoBalanceNum)
+        if (initialBalance === 0) {
+          setInitialBalance(demoBalanceNum)
         }
-        const priceChange = calculateBalancePriceChange(demoBalanceNum, demoInitialBalance || demoBalanceNum)
+        const priceChange = calculateBalancePriceChange(demoBalanceNum, initialBalance || demoBalanceNum)
         setBalancePriceChange(priceChange)
       }
 
@@ -144,59 +142,6 @@ export default function MobileTrading() {
     }
   }
 
-  const fetchLiveData = async (chainKey: string) => {
-    if (!client) return
-
-    try {
-      const balanceData = await client.getBalance(chainKey)
-      if (balanceData.success) {
-        setBalance(balanceData.balance)
-        if (liveInitialBalance === 0) {
-          setLiveInitialBalance(balanceData.balance)
-        }
-        const priceChange = calculateBalancePriceChange(balanceData.balance, liveInitialBalance || balanceData.balance)
-        setBalancePriceChange(priceChange)
-      }
-
-      const positionsData = await client.getPositionsByChain(chainKey)
-
-      // 🔥 FIX: Filter out demo positions on frontend
-      const livePositionsOnly = positionsData.filter(p => !p.isSimulation)
-
-      // Enrich positions with current prices and market data
-      const enrichedPositions = await Promise.all(
-        livePositionsOnly.map(async (position) => {
-          try {
-            const details = await client.getTokenDetails(position.chain, position.tokenAddress)
-            if (details.success) {
-              const formatMarketCap = (mc: number): string => {
-                if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
-                if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
-                if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
-                return `$${mc.toFixed(0)}`
-              }
-
-              return {
-                ...position,
-                currentPrice: details.token.priceUsd,
-                marketCap: formatMarketCap(details.token.marketCap),
-                priceChange24h: details.token.change?.h24,
-              }
-            }
-            return position
-          } catch (err) {
-            console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
-            return position
-          }
-        }),
-      )
-
-      setPositions(enrichedPositions)
-    } catch (err) {
-      console.error("Error fetching live data:", err)
-    }
-  }
-
   // Refresh data after trade and enrich with prices
   const refreshData = async () => {
     if (!client) return
@@ -205,7 +150,44 @@ export default function MobileTrading() {
       if (mode === "demo") {
         await fetchDemoData(selectedChain)
       } else {
-        await fetchLiveData(selectedChain)
+        const balanceData = await client.getBalance(selectedChain)
+        if (balanceData.success) {
+          setBalance(balanceData.balance)
+          const priceChange = calculateBalancePriceChange(balanceData.balance, initialBalance)
+          setBalancePriceChange(priceChange)
+        }
+
+        const positionsData = await client.getPositionsByChain(selectedChain)
+
+        // Enrich positions with current prices and market data
+        const enrichedPositions = await Promise.all(
+          positionsData.map(async (position) => {
+            try {
+              const details = await client.getTokenDetails(position.chain, position.tokenAddress)
+              if (details.success) {
+                const formatMarketCap = (mc: number): string => {
+                  if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+                  if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+                  if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
+                  return `$${mc.toFixed(0)}`
+                }
+
+                return {
+                  ...position,
+                  currentPrice: details.token.priceUsd,
+                  marketCap: formatMarketCap(details.token.marketCap),
+                  priceChange24h: details.token.change?.h24,
+                }
+              }
+              return position
+            } catch (err) {
+              console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
+              return position
+            }
+          }),
+        )
+
+        setPositions(enrichedPositions)
       }
 
       // Fetch updated native price
@@ -399,45 +381,6 @@ export default function MobileTrading() {
     }
   }
 
-  const handleSellPositionDirectly = async (position: PositionWithPrice, amountStr: string) => {
-    if (!client || isTrading) return
-
-    let percent: number
-    if (amountStr.includes("%")) {
-      percent = Number.parseFloat(amountStr.replace("%", ""))
-    } else {
-      percent = Number.parseFloat(amountStr)
-    }
-
-    if (isNaN(percent) || percent <= 0 || percent > 100) {
-      showNotification("Invalid sell amount (must be between 0-100%)", "error")
-      return
-    }
-
-    setIsTrading(true)
-    setIsTradingId(position.id)
-    showNotification(`Processing sell ${percent}% transaction...`, "info")
-
-    try {
-      const result =
-        mode === "demo"
-          ? await client.demoSellToken(position.chain, position.tokenAddress, percent)
-          : await client.sellToken(position.chain, position.tokenAddress, percent, 0.5)
-
-      if (result.success) {
-        showNotification("Sell transaction successful!", "success")
-        await refreshData()
-      } else {
-        showNotification(`Sell failed: ${result.error}`, "error")
-      }
-    } catch (err) {
-      showNotification(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error")
-    } finally {
-      setIsTrading(false)
-      setIsTradingId("")
-    }
-  }
-
   // Initialize client and load data
   useEffect(() => {
     const initializeMiniApp = async () => {
@@ -486,7 +429,7 @@ export default function MobileTrading() {
           if (demoBalanceData.success) {
             const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
             setDemoBalance(demoBalanceNum)
-            setDemoInitialBalance(demoBalanceNum)
+            setInitialBalance(demoBalanceNum)
             setBalancePriceChange(0)
           }
         })
@@ -552,16 +495,53 @@ export default function MobileTrading() {
         if (mode === "demo") {
           await fetchDemoData(selectedChain)
         } else {
-          await fetchLiveData(selectedChain)
+          const balanceData = await client.getBalance(selectedChain)
+          if (balanceData.success) {
+            setBalance(balanceData.balance)
+            const priceChange = calculateBalancePriceChange(balanceData.balance, initialBalance)
+            setBalancePriceChange(priceChange)
+          }
+
+          // Fetch native price for the new chain
+          await fetchNativePrice(selectedChain)
+
+          const positionsData = await client.getPositionsByChain(selectedChain)
+
+          // Enrich positions with current prices and market data
+          const enrichedPositions = await Promise.all(
+            positionsData.map(async (position) => {
+              try {
+                const details = await client.getTokenDetails(position.chain, position.tokenAddress)
+                if (details.success) {
+                  const formatMarketCap = (mc: number): string => {
+                    if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+                    if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+                    if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
+                    return `$${mc.toFixed(0)}`
+                  }
+
+                  return {
+                    ...position,
+                    currentPrice: details.token.priceUsd,
+                    marketCap: formatMarketCap(details.token.marketCap),
+                    priceChange24h: details.token.change?.h24,
+                  }
+                }
+                return position
+              } catch (err) {
+                console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
+                return position
+              }
+            }),
+          )
+
+          setPositions(enrichedPositions)
 
           const addressData = await client.getWalletAddress(selectedChain)
           if (addressData.success) {
             setWalletAddress(addressData.address)
           }
         }
-
-        // Fetch native price for the new chain
-        await fetchNativePrice(selectedChain)
       } catch (err) {
         console.error("Error updating chain data:", err)
       } finally {
@@ -570,26 +550,27 @@ export default function MobileTrading() {
     }
 
     updateChainData()
-  }, [selectedChain, client, mode])
+  }, [selectedChain, client, initialBalance, mode])
 
   useEffect(() => {
     if (!client) return
 
     const resetPriceChangeForMode = async () => {
+      setPositions([])
+      setDemoPositions([])
+
       if (mode === "demo") {
         const demoBalanceData = await client.getDemoBalance(selectedChain)
         if (demoBalanceData.success) {
           const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
-          setDemoInitialBalance(demoBalanceNum)
+          setInitialBalance(demoBalanceNum)
           setBalancePriceChange(0)
-          setDemoBalance(demoBalanceNum)
         }
       } else {
         const balanceData = await client.getBalance(selectedChain)
         if (balanceData.success) {
-          setLiveInitialBalance(balanceData.balance)
+          setInitialBalance(balanceData.balance)
           setBalancePriceChange(0)
-          setBalance(balanceData.balance)
         }
       }
     }
@@ -720,12 +701,13 @@ export default function MobileTrading() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === "success"
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+              notification.type === "success"
                 ? "bg-green-500/90 text-white"
                 : notification.type === "error"
                   ? "bg-red-500/90 text-white"
                   : "bg-blue-500/90 text-white"
-              }`}
+            }`}
           >
             {notification.message}
           </div>
@@ -775,13 +757,13 @@ export default function MobileTrading() {
         <div className="flex items-center justify-center w-full mb-6">
           <div className="flex items-center gap-2 bg-[#0F0F0F] border border-[#1F1F1F] rounded-full px-2 py-1.5">
             <div
-              className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${mode === "demo" ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"}`}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${mode === "demo" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"} cursor-pointer`}
               onClick={() => setMode("demo")}
             >
               • Demo
             </div>
             <div
-              className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${mode === "live" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"}`}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${mode === "live" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"} cursor-pointer`}
               onClick={() => setMode("live")}
             >
               • Live
@@ -903,9 +885,13 @@ export default function MobileTrading() {
                     <Button
                       onClick={async (e) => {
                         e.stopPropagation()
-                        await handleSellPositionDirectly(position, "100%")
+                        if (!client || isTrading) return
+
+                        setTimeout(() => {
+                          handleSellWithAmount("100%")
+                        }, 100)
                       }}
-                      disabled={isTrading && isTradingId === position.id}
+                      disabled={isTrading || isTradingId === position.id}
                       className="bg-[#3A3A3A] hover:bg-[#444444] text-white font-medium rounded-full px-4 h-9 text-xs disabled:opacity-50"
                     >
                       {isTrading && isTradingId === position.id ? "..." : "Sell 100%"}
@@ -1019,6 +1005,7 @@ export default function MobileTrading() {
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
           onClick={(e) => {
+            // Only close if clicking on the backdrop, not the modal content
             if (e.target === e.currentTarget) {
               // Don't close - keep token visible
             }
@@ -1050,6 +1037,7 @@ export default function MobileTrading() {
               </div>
               <button
                 onClick={() => {
+                  // Keep the token selected even after closing modal
                   setShowTokenDetail(false)
                 }}
                 className="text-gray-400 hover:text-white text-2xl leading-none"
@@ -1109,7 +1097,7 @@ export default function MobileTrading() {
               </div>
             </div>
 
-            {displayPositions.find((p) => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()) ? (
+            {positions.find((p) => p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()) ? (
               <>
                 <div className="space-y-6">
                   <div>
@@ -1290,7 +1278,7 @@ export default function MobileTrading() {
         balance={balance}
         nativePrice={nativePrice}
         nativeSymbol={nativeSymbol}
-        telegramClient={client!}
+        telegramClient={client!} // Use non-null assertion since modal only shows when client exists
       />
     </div>
   )
