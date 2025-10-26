@@ -74,7 +74,7 @@ export default function MobileTrading() {
 
       if (!res.ok) {
         console.error(`Price API failed (${res.status})`)
-        setNativePrice(150)
+        // setNativePrice(150)
         return
       }
 
@@ -87,7 +87,7 @@ export default function MobileTrading() {
       setNativePrice(data.price)
     } catch (err) {
       console.error("Error fetching native token price:", err)
-      setNativePrice(150)
+      // setNativePrice(150)
     }
   }
 
