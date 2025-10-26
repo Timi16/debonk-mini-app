@@ -24,12 +24,6 @@ export interface Balance {
   error?: string
 }
 
-export interface BalanceHistory {
-  timestamp: number
-  balance: number
-  usdValue: number
-}
-
 export interface Position {
   id: string
   tokenAddress: string
