@@ -552,6 +552,32 @@ export default function MobileTrading() {
     updateChainData()
   }, [selectedChain, client, initialBalance, mode])
 
+  useEffect(() => {
+    if (!client) return
+
+    const resetPriceChangeForMode = async () => {
+      setPositions([])
+      setDemoPositions([])
+
+      if (mode === "demo") {
+        const demoBalanceData = await client.getDemoBalance(selectedChain)
+        if (demoBalanceData.success) {
+          const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
+          setInitialBalance(demoBalanceNum)
+          setBalancePriceChange(0)
+        }
+      } else {
+        const balanceData = await client.getBalance(selectedChain)
+        if (balanceData.success) {
+          setInitialBalance(balanceData.balance)
+          setBalancePriceChange(0)
+        }
+      }
+    }
+
+    resetPriceChangeForMode()
+  }, [mode, client, selectedChain])
+
   const handleCopyAddress = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard && walletAddress) {
       navigator.clipboard.writeText(walletAddress)
