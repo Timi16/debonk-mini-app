@@ -19,6 +19,7 @@ export default function MobileTrading() {
   const [loading, setLoading] = useState(true)
   const [chains, setChains] = useState<Chain[]>([])
   const [selectedChain, setSelectedChain] = useState("solana")
+  const [chainLoaded, setChainLoaded] = useState(false)
   const [balance, setBalance] = useState(0)
   const [nativePrice, setNativePrice] = useState(0)
   const [walletAddress, setWalletAddress] = useState("")
@@ -47,6 +48,7 @@ export default function MobileTrading() {
     demo: {},
     live: {},
   })
+  const initializedRef = useRef<Set<string>>(new Set())
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -90,7 +92,8 @@ export default function MobileTrading() {
     if (!client) return
 
     try {
-      const key = `${modeType}-${chainKey}`
+      const initKey = `${modeType}-${chainKey}`
+      const isFirstTimeForThisChain = !initializedRef.current.has(initKey)
 
       if (modeType === "demo") {
         // Fetch demo balance
@@ -99,8 +102,9 @@ export default function MobileTrading() {
           const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
           setDemoBalance(demoBalanceNum)
 
-          if (isInitialLoad || !initialBalancesRef.current.demo[chainKey]) {
+          if (isFirstTimeForThisChain) {
             initialBalancesRef.current.demo[chainKey] = demoBalanceNum
+            initializedRef.current.add(initKey)
             setBalancePriceChange(0)
           } else {
             const priceChange = calculateBalancePriceChange(demoBalanceNum, initialBalancesRef.current.demo[chainKey])
@@ -145,8 +149,9 @@ export default function MobileTrading() {
         if (balanceData.success) {
           setBalance(balanceData.balance)
 
-          if (isInitialLoad || !initialBalancesRef.current.live[chainKey]) {
+          if (isFirstTimeForThisChain) {
             initialBalancesRef.current.live[chainKey] = balanceData.balance
+            initializedRef.current.add(initKey)
             setBalancePriceChange(0)
           } else {
             const priceChange = calculateBalancePriceChange(
@@ -432,6 +437,11 @@ export default function MobileTrading() {
       try {
         console.log("[v0] === TELEGRAM MINI APP INIT WITH SDK ===")
 
+        const savedChain = typeof window !== "undefined" ? localStorage.getItem("selectedChain") : null
+        if (savedChain) {
+          setSelectedChain(savedChain)
+        }
+
         if (typeof window !== "undefined") {
           try {
             const twaModule = await import("@twa-dev/sdk")
@@ -477,14 +487,16 @@ export default function MobileTrading() {
         const profile = await newClient.getUserProfile()
         setUserProfile(profile)
 
-        await fetchChainData("solana", "demo", true)
-        await fetchNativePrice("solana")
+        const chainToLoad = savedChain || "solana"
+        await fetchChainData(chainToLoad, "demo", true)
+        await fetchNativePrice(chainToLoad)
 
-        const addressData = await newClient.getWalletAddress("solana")
+        const addressData = await newClient.getWalletAddress(chainToLoad)
         if (addressData.success) {
           setWalletAddress(addressData.address)
         }
 
+        setChainLoaded(true)
         console.log("[v0] === INIT COMPLETE ===")
       } catch (err) {
         console.error("[v0] Initialization error:", err)
@@ -498,13 +510,17 @@ export default function MobileTrading() {
   }, [])
 
   useEffect(() => {
-    if (!client) return
+    if (!client || !chainLoaded) return
 
     const updateChainData = async () => {
       setLoadingPositions(true)
       try {
-        await fetchChainData(selectedChain, mode, true)
+        await fetchChainData(selectedChain, mode, false)
         await fetchNativePrice(selectedChain)
+
+        if (typeof window !== "undefined") {
+          localStorage.setItem("selectedChain", selectedChain)
+        }
 
         if (mode === "live") {
           const addressData = await client.getWalletAddress(selectedChain)
@@ -520,7 +536,7 @@ export default function MobileTrading() {
     }
 
     updateChainData()
-  }, [selectedChain, mode, client])
+  }, [selectedChain, mode, client, chainLoaded])
 
   const handleCopyAddress = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard && walletAddress) {
