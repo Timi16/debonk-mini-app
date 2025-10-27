@@ -33,26 +33,44 @@ export async function GET(request: NextRequest) {
       headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY
     }
 
-    const res = await fetch(`${COINGECKO_SIMPLE_PRICE}?${params.toString()}`, {
-      headers,
-      cache: "no-store",
-    })
+    let lastError: Error | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(`${COINGECKO_SIMPLE_PRICE}?${params.toString()}`, {
+          headers,
+          cache: "no-store",
+        })
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => "")
-      throw new Error(`CoinGecko request failed (${res.status}): ${body}`)
+        if (!res.ok) {
+          if (res.status === 429) {
+            // Rate limited - wait before retrying
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+            continue
+          }
+          const body = await res.text().catch(() => "")
+          throw new Error(`CoinGecko request failed (${res.status}): ${body}`)
+        }
+
+        const data = await res.json()
+        const price = data?.[id]?.usd
+
+        if (typeof price !== "number") {
+          throw new Error(`Invalid response from CoinGecko: missing ${id}.usd`)
+        }
+
+        return NextResponse.json({ price, cached: false })
+      } catch (error) {
+        lastError = error as Error
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+        }
+      }
     }
 
-    const data = await res.json()
-    const price = data?.[id]?.usd
-
-    if (typeof price !== "number") {
-      throw new Error(`Invalid response from CoinGecko: missing ${id}.usd`)
-    }
-
-    return NextResponse.json({ price })
+    throw lastError || new Error("Failed after 3 attempts")
   } catch (error) {
-    console.error("Price API error:", error)
-    return NextResponse.json({ error: "Failed to fetch price", price: 150 }, { status: 500 })
+    console.error("[v0] Price API error:", error)
+    // Return cached/fallback price instead of 500 error
+    return NextResponse.json({ error: "Failed to fetch price", price: null }, { status: 200 })
   }
 }

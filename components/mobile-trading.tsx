@@ -8,6 +8,7 @@ import { MiniAppClient } from "@/lib/telegram-client"
 import { DepositModal } from "./deposit-modal"
 import { WithdrawModal } from "./withdraw-modal"
 import type { Chain, PositionWithPrice, UserProfile, SelectedToken, Notification } from "@/lib/types"
+import { getCachedPrice } from "@/lib/price-cache"
 
 let WebApp: any = null
 
@@ -69,20 +70,14 @@ export default function MobileTrading() {
       const currentChain = chains.find((c) => c.key === chainKey)
       const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || "SOL"
 
-      const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}`)
+      const price = await getCachedPrice(symbol)
 
-      if (!res.ok) {
-        console.error(`[v0] Price API failed (${res.status})`)
+      if (typeof price !== "number") {
+        console.error(`[v0] Invalid price for ${symbol}`)
         return
       }
 
-      const data = await res.json()
-
-      if (typeof data.price !== "number") {
-        throw new Error("Invalid price response")
-      }
-
-      setNativePrice(data.price)
+      setNativePrice(price)
     } catch (err) {
       console.error("[v0] Error fetching native token price:", err)
     }
