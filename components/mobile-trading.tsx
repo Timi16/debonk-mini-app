@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
@@ -9,11 +9,7 @@ import { DepositModal } from "./deposit-modal"
 import { WithdrawModal } from "./withdraw-modal"
 import type { Chain, PositionWithPrice, UserProfile, SelectedToken, Notification } from "@/lib/types"
 
-// Dynamically import WebApp only on client side
 let WebApp: any = null
-if (typeof window !== "undefined") {
-  WebApp = require("@twa-dev/sdk").default
-}
 
 export default function MobileTrading() {
   const [activeTab, setActiveTab] = useState("home")
@@ -43,12 +39,14 @@ export default function MobileTrading() {
   const [customSellAmount, setCustomSellAmount] = useState("")
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
-  const [initialBalance, setInitialBalance] = useState(0)
   const [balancePriceChange, setBalancePriceChange] = useState(0)
   const [demoBalance, setDemoBalance] = useState(0)
   const [demoPositions, setDemoPositions] = useState<PositionWithPrice[]>([])
-  const [demoInitialBalance, setDemoInitialBalance] = useState(0)
-  const [liveInitialBalance, setLiveInitialBalance] = useState(0)
+
+  const initialBalancesRef = useRef<Record<string, Record<string, number>>>({
+    demo: {},
+    live: {},
+  })
 
   // Show notification
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -60,11 +58,10 @@ export default function MobileTrading() {
   }
 
   const calculateBalancePriceChange = (currentBalance: number, initialBal: number) => {
-    if (initialBal === 0) return 0
+    if (initialBal === 0 || initialBal === undefined) return 0
     return ((currentBalance - initialBal) / initialBal) * 100
   }
 
-  // Fetch native token price from server API (secure)
   const fetchNativePrice = async (chainKey: string) => {
     try {
       const currentChain = chains.find((c) => c.key === chainKey)
@@ -73,8 +70,7 @@ export default function MobileTrading() {
       const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}`)
 
       if (!res.ok) {
-        console.error(`Price API failed (${res.status})`)
-        // setNativePrice(150)
+        console.error(`[v0] Price API failed (${res.status})`)
         return
       }
 
@@ -86,33 +82,87 @@ export default function MobileTrading() {
 
       setNativePrice(data.price)
     } catch (err) {
-      console.error("Error fetching native token price:", err)
-      // setNativePrice(150)
+      console.error("[v0] Error fetching native token price:", err)
     }
   }
 
-  const fetchDemoData = async (chainKey: string) => {
+  const fetchChainData = async (chainKey: string, modeType: "demo" | "live", isInitialLoad = false) => {
     if (!client) return
 
     try {
-      // Fetch demo balance
-      const demoBalanceData = await client.getDemoBalance(chainKey)
-      if (demoBalanceData.success) {
-        const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
-        setDemoBalance(demoBalanceNum)
-        if (demoInitialBalance === 0) {
-          setDemoInitialBalance(demoBalanceNum)
-        }
-        const priceChange = calculateBalancePriceChange(demoBalanceNum, demoInitialBalance || demoBalanceNum)
-        setBalancePriceChange(priceChange)
-      }
+      const key = `${modeType}-${chainKey}`
 
-      // Fetch demo positions
-      const demoPositionsData = await client.getDemoPositions(chainKey)
-      if (demoPositionsData.success && demoPositionsData.positions) {
-        // Enrich demo positions with current prices
+      if (modeType === "demo") {
+        // Fetch demo balance
+        const demoBalanceData = await client.getDemoBalance(chainKey)
+        if (demoBalanceData.success) {
+          const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
+          setDemoBalance(demoBalanceNum)
+
+          if (isInitialLoad || !initialBalancesRef.current.demo[chainKey]) {
+            initialBalancesRef.current.demo[chainKey] = demoBalanceNum
+            setBalancePriceChange(0)
+          } else {
+            const priceChange = calculateBalancePriceChange(demoBalanceNum, initialBalancesRef.current.demo[chainKey])
+            setBalancePriceChange(priceChange)
+          }
+        }
+
+        // Fetch demo positions
+        const demoPositionsData = await client.getDemoPositions(chainKey)
+        if (demoPositionsData.success && demoPositionsData.positions) {
+          const enrichedPositions = await Promise.all(
+            demoPositionsData.positions.map(async (position: any) => {
+              try {
+                const details = await client.getTokenDetails(position.chain, position.tokenAddress)
+                if (details.success) {
+                  const formatMarketCap = (mc: number): string => {
+                    if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
+                    if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
+                    if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
+                    return `$${mc.toFixed(0)}`
+                  }
+
+                  return {
+                    ...position,
+                    currentPrice: details.token.priceUsd,
+                    marketCap: formatMarketCap(details.token.marketCap),
+                    priceChange24h: details.token.change?.h24,
+                  }
+                }
+                return position
+              } catch (err) {
+                console.error(`[v0] Failed to fetch price for ${position.tokenAddress}:`, err)
+                return position
+              }
+            }),
+          )
+          setDemoPositions(enrichedPositions)
+        }
+      } else {
+        // Fetch live balance
+        const balanceData = await client.getBalance(chainKey)
+        if (balanceData.success) {
+          setBalance(balanceData.balance)
+
+          if (isInitialLoad || !initialBalancesRef.current.live[chainKey]) {
+            initialBalancesRef.current.live[chainKey] = balanceData.balance
+            setBalancePriceChange(0)
+          } else {
+            const priceChange = calculateBalancePriceChange(
+              balanceData.balance,
+              initialBalancesRef.current.live[chainKey],
+            )
+            setBalancePriceChange(priceChange)
+          }
+        }
+
+        // Fetch live positions
+        const positionsData = await client.getPositionsByChain(chainKey)
+        const livePositionsOnly = positionsData.filter((p) => !p.isSimulation)
+
         const enrichedPositions = await Promise.all(
-          demoPositionsData.positions.map(async (position: any) => {
+          livePositionsOnly.map(async (position) => {
             try {
               const details = await client.getTokenDetails(position.chain, position.tokenAddress)
               if (details.success) {
@@ -132,68 +182,16 @@ export default function MobileTrading() {
               }
               return position
             } catch (err) {
-              console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
+              console.error(`[v0] Failed to fetch price for ${position.tokenAddress}:`, err)
               return position
             }
           }),
         )
-        setDemoPositions(enrichedPositions)
+
+        setPositions(enrichedPositions)
       }
     } catch (err) {
-      console.error("Error fetching demo data:", err)
-    }
-  }
-
-  const fetchLiveData = async (chainKey: string) => {
-    if (!client) return
-
-    try {
-      const balanceData = await client.getBalance(chainKey)
-      if (balanceData.success) {
-        setBalance(balanceData.balance)
-        if (liveInitialBalance === 0) {
-          setLiveInitialBalance(balanceData.balance)
-        }
-        const priceChange = calculateBalancePriceChange(balanceData.balance, liveInitialBalance || balanceData.balance)
-        setBalancePriceChange(priceChange)
-      }
-
-      const positionsData = await client.getPositionsByChain(chainKey)
-
-      // 🔥 FIX: Filter out demo positions on frontend
-      const livePositionsOnly = positionsData.filter(p => !p.isSimulation)
-
-      // Enrich positions with current prices and market data
-      const enrichedPositions = await Promise.all(
-        livePositionsOnly.map(async (position) => {
-          try {
-            const details = await client.getTokenDetails(position.chain, position.tokenAddress)
-            if (details.success) {
-              const formatMarketCap = (mc: number): string => {
-                if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
-                if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
-                if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
-                return `$${mc.toFixed(0)}`
-              }
-
-              return {
-                ...position,
-                currentPrice: details.token.priceUsd,
-                marketCap: formatMarketCap(details.token.marketCap),
-                priceChange24h: details.token.change?.h24,
-              }
-            }
-            return position
-          } catch (err) {
-            console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
-            return position
-          }
-        }),
-      )
-
-      setPositions(enrichedPositions)
-    } catch (err) {
-      console.error("Error fetching live data:", err)
+      console.error("[v0] Error fetching chain data:", err)
     }
   }
 
@@ -202,16 +200,10 @@ export default function MobileTrading() {
     if (!client) return
 
     try {
-      if (mode === "demo") {
-        await fetchDemoData(selectedChain)
-      } else {
-        await fetchLiveData(selectedChain)
-      }
-
-      // Fetch updated native price
+      await fetchChainData(selectedChain, mode, false)
       await fetchNativePrice(selectedChain)
     } catch (err) {
-      console.error("Error refreshing data:", err)
+      console.error("[v0] Error refreshing data:", err)
     }
   }
 
@@ -219,7 +211,6 @@ export default function MobileTrading() {
   const handleBuyWithAmount = async (amountStr: string) => {
     if (!client || !selectedToken || isTrading) return
 
-    // Parse amount (remove currency symbol)
     const amount = Number.parseFloat(amountStr.split(" ")[0])
 
     if (isNaN(amount) || amount <= 0) {
@@ -278,7 +269,6 @@ export default function MobileTrading() {
       return
     }
 
-    // Parse amount (remove % symbol)
     let percent: number
     if (amountStr.includes("%")) {
       percent = Number.parseFloat(amountStr.replace("%", ""))
@@ -327,7 +317,6 @@ export default function MobileTrading() {
       return
     }
 
-    // For custom sell, treat it as a percentage (0-100)
     if (amount > 100) {
       showNotification("Please enter a percentage between 0-100", "error")
       return
@@ -394,7 +383,7 @@ export default function MobileTrading() {
         showNotification("Failed to fetch token details", "error")
       }
     } catch (err) {
-      console.error("Failed to fetch token:", err)
+      console.error("[v0] Failed to fetch token:", err)
       showNotification("Failed to load token details", "error")
     }
   }
@@ -438,39 +427,45 @@ export default function MobileTrading() {
     }
   }
 
-  // Initialize client and load data
   useEffect(() => {
     const initializeMiniApp = async () => {
       try {
-        console.log("=== TELEGRAM MINI APP INIT WITH SDK ===")
+        console.log("[v0] === TELEGRAM MINI APP INIT WITH SDK ===")
 
-        // Initialize the WebApp SDK
-        WebApp.ready()
-        console.log("✓ WebApp SDK ready")
+        if (typeof window !== "undefined") {
+          try {
+            const twaModule = await import("@twa-dev/sdk")
+            WebApp = twaModule.default
+            WebApp.ready()
+            console.log("[v0] ✓ WebApp SDK ready")
+          } catch (sdkErr) {
+            console.warn("[v0] WebApp SDK not available, running in demo mode")
+            setError("Telegram WebApp SDK not available. Running in demo mode.")
+            setLoading(false)
+            return
+          }
+        }
 
-        const telegramId = WebApp.initDataUnsafe?.user?.id
-
-        // Get the raw initData string for authentication
-        const initData = WebApp.initData
+        const telegramId = WebApp?.initDataUnsafe?.user?.id
+        const initData = WebApp?.initData
 
         if (!telegramId) {
-          console.error("Could not extract Telegram ID")
+          console.error("[v0] Could not extract Telegram ID")
           setError("Could not get Telegram ID from SDK")
           setLoading(false)
           return
         }
 
         if (!initData) {
-          console.error("Could not extract initData")
+          console.error("[v0] Could not extract initData")
           setError("Could not get initData from SDK")
           setLoading(false)
           return
         }
 
-        console.log("✓ Got Telegram ID:", telegramId)
-        console.log("✓ Got initData length:", initData.length)
+        console.log("[v0] ✓ Got Telegram ID:", telegramId)
+        console.log("[v0] ✓ Got initData length:", initData.length)
 
-        // Pass both telegramId and initData to the client
         const newClient = new MiniAppClient(telegramId.toString(), initData)
         setClient(newClient)
 
@@ -482,48 +477,7 @@ export default function MobileTrading() {
         const profile = await newClient.getUserProfile()
         setUserProfile(profile)
 
-        await newClient.getDemoBalance("solana").then((demoBalanceData) => {
-          if (demoBalanceData.success) {
-            const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
-            setDemoBalance(demoBalanceNum)
-            setDemoInitialBalance(demoBalanceNum)
-            setBalancePriceChange(0)
-          }
-        })
-
-        await newClient.getDemoPositions("solana").then(async (demoPositionsData) => {
-          if (demoPositionsData.success && demoPositionsData.positions) {
-            const enrichedPositions = await Promise.all(
-              demoPositionsData.positions.map(async (position: any) => {
-                try {
-                  const details = await newClient.getTokenDetails(position.chain, position.tokenAddress)
-                  if (details.success) {
-                    const formatMarketCap = (mc: number): string => {
-                      if (mc >= 1e9) return `$${(mc / 1e9).toFixed(1)}B`
-                      if (mc >= 1e6) return `$${(mc / 1e6).toFixed(1)}M`
-                      if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`
-                      return `$${mc.toFixed(0)}`
-                    }
-
-                    return {
-                      ...position,
-                      currentPrice: details.token.priceUsd,
-                      marketCap: formatMarketCap(details.token.marketCap),
-                      priceChange24h: details.token.change?.h24,
-                    }
-                  }
-                  return position
-                } catch (err) {
-                  console.error(`Failed to fetch price for ${position.tokenAddress}:`, err)
-                  return position
-                }
-              }),
-            )
-            setDemoPositions(enrichedPositions)
-          }
-        })
-
-        // Fetch initial native price
+        await fetchChainData("solana", "demo", true)
         await fetchNativePrice("solana")
 
         const addressData = await newClient.getWalletAddress("solana")
@@ -531,9 +485,9 @@ export default function MobileTrading() {
           setWalletAddress(addressData.address)
         }
 
-        console.log("=== INIT COMPLETE ===")
+        console.log("[v0] === INIT COMPLETE ===")
       } catch (err) {
-        console.error("Initialization error:", err)
+        console.error("[v0] Initialization error:", err)
         setError(`Failed to initialize: ${err instanceof Error ? err.message : "Unknown error"}`)
       } finally {
         setLoading(false)
@@ -549,53 +503,24 @@ export default function MobileTrading() {
     const updateChainData = async () => {
       setLoadingPositions(true)
       try {
-        if (mode === "demo") {
-          await fetchDemoData(selectedChain)
-        } else {
-          await fetchLiveData(selectedChain)
+        await fetchChainData(selectedChain, mode, true)
+        await fetchNativePrice(selectedChain)
 
+        if (mode === "live") {
           const addressData = await client.getWalletAddress(selectedChain)
           if (addressData.success) {
             setWalletAddress(addressData.address)
           }
         }
-
-        // Fetch native price for the new chain
-        await fetchNativePrice(selectedChain)
       } catch (err) {
-        console.error("Error updating chain data:", err)
+        console.error("[v0] Error updating chain data:", err)
       } finally {
         setLoadingPositions(false)
       }
     }
 
     updateChainData()
-  }, [selectedChain, client, mode])
-
-  useEffect(() => {
-    if (!client) return
-
-    const resetPriceChangeForMode = async () => {
-      if (mode === "demo") {
-        const demoBalanceData = await client.getDemoBalance(selectedChain)
-        if (demoBalanceData.success) {
-          const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance)
-          setDemoInitialBalance(demoBalanceNum)
-          setBalancePriceChange(0)
-          setDemoBalance(demoBalanceNum)
-        }
-      } else {
-        const balanceData = await client.getBalance(selectedChain)
-        if (balanceData.success) {
-          setLiveInitialBalance(balanceData.balance)
-          setBalancePriceChange(0)
-          setBalance(balanceData.balance)
-        }
-      }
-    }
-
-    resetPriceChangeForMode()
-  }, [mode, client, selectedChain])
+  }, [selectedChain, mode, client])
 
   const handleCopyAddress = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard && walletAddress) {
@@ -631,7 +556,7 @@ export default function MobileTrading() {
 
     if (client) {
       try {
-        console.log(`Fetching token details for CA: ${ca} on chain: ${selectedChain}`)
+        console.log(`[v0] Fetching token details for CA: ${ca} on chain: ${selectedChain}`)
         const details = await client.getTokenDetails(selectedChain, ca)
 
         if (details.success) {
@@ -652,9 +577,6 @@ export default function MobileTrading() {
           const h1Change = token.change?.h1 ?? 0
           const h24Change = token.change?.h24 ?? 0
           const h24Volume = token.volume?.h24 ?? 0
-
-          const currentChain = chains.find((c) => c.key === selectedChain)
-          const nativeSymbol = currentChain?.nativeToken.symbol || "SOL"
 
           const buyAmounts = [`0.1 ${nativeSymbol}`, `0.5 ${nativeSymbol}`, `X ${nativeSymbol}`]
           const sellAmounts = [`50%`, `100%`, `X`]
@@ -685,7 +607,7 @@ export default function MobileTrading() {
         }
       } catch (err) {
         setHasValidToken(false)
-        console.error("Failed to fetch token:", err)
+        console.error("[v0] Failed to fetch token:", err)
         setError("Failed to process contract address")
       }
     }
@@ -715,17 +637,17 @@ export default function MobileTrading() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
-      {/* Notifications */}
       <div className="fixed top-4 left-0 right-0 z-50 flex flex-col items-center gap-2 px-4">
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${notification.type === "success"
+            className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+              notification.type === "success"
                 ? "bg-green-500/90 text-white"
                 : notification.type === "error"
                   ? "bg-red-500/90 text-white"
                   : "bg-blue-500/90 text-white"
-              }`}
+            }`}
           >
             {notification.message}
           </div>
