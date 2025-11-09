@@ -1164,7 +1164,7 @@ export default function MobileTrading() {
               </button>
             </div>
 
-            <div className="flex items-center gap-3 mb-6 text-sm">
+            <div className="flex items-center gap-3 mb-6 text-xs">
               <span
                 className={
                   selectedToken.pnlData.fiveMin.includes("-")
@@ -1197,35 +1197,35 @@ export default function MobileTrading() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
                 <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
                   Market Cap
                 </div>
-                <div className="text-xl font-bold text-white">
+                <div className="text-md font-bold text-white">
                   {selectedToken.marketData.marketCap}
                 </div>
               </div>
-              <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
                 <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
                   Liquidity
                 </div>
-                <div className="text-xl font-bold text-white">
+                <div className="text-md font-bold text-white">
                   {selectedToken.marketData.liquidity}
                 </div>
               </div>
-              <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
                 <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
                   Price
                 </div>
-                <div className="text-xl font-bold text-white">
+                <div className="text-md font-bold text-white">
                   {selectedToken.marketData.price}
                 </div>
               </div>
-              <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#2A2A2A]">
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
                 <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
                   Volume 24H
                 </div>
-                <div className="text-xl font-bold text-white">
+                <div className="text-md font-bold text-white">
                   {selectedToken.marketData.volume24h}
                 </div>
               </div>
