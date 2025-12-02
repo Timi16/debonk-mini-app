@@ -7,7 +7,6 @@ import Image from "next/image";
 import { MiniAppClient } from "@/lib/telegram-client";
 import { DepositModal } from "./deposit-modal";
 import { WithdrawModal } from "./withdraw-modal";
-import PerpDex from "./perp-dex"; // ← ADD THIS
 import type {
   Chain,
   PositionWithPrice,
@@ -16,7 +15,7 @@ import type {
   Notification,
 } from "@/lib/types";
 import { getCachedPrice } from "@/lib/price-cache";
-import { RefreshCcw, Copy, TrendingUp } from "lucide-react";
+import { RefreshCcw, Copy } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -24,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// import { dummyChains, positionsWithPrice } from "@/lib/dummyData";
 import logo from "@/assets/logo.webp";
 import WalletSkeleton from "./loading-skeleton";
 
@@ -63,7 +63,6 @@ export default function MobileTrading() {
   const [balancePriceChange, setBalancePriceChange] = useState(0);
   const [demoBalance, setDemoBalance] = useState(0);
   const [demoPositions, setDemoPositions] = useState<PositionWithPrice[]>([]);
-  const [showPerps, setShowPerps] = useState(false); // ← ADD THIS
 
   const initialBalancesRef = useRef<Record<string, Record<string, number>>>({
     demo: {},
@@ -121,6 +120,7 @@ export default function MobileTrading() {
       const isFirstTimeForThisChain = !initializedRef.current.has(initKey);
 
       if (modeType === "demo") {
+        // Fetch demo balance
         const demoBalanceData = await client.getDemoBalance(chainKey);
         if (demoBalanceData.success) {
           const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance);
@@ -139,6 +139,7 @@ export default function MobileTrading() {
           }
         }
 
+        // Fetch demo positions
         const demoPositionsData = await client.getDemoPositions(chainKey);
         if (demoPositionsData.success && demoPositionsData.positions) {
           const enrichedPositions = await Promise.all(
@@ -176,6 +177,7 @@ export default function MobileTrading() {
           setDemoPositions(enrichedPositions);
         }
       } else {
+        // Fetch live balance
         const balanceData = await client.getBalance(chainKey);
         if (balanceData.success) {
           setBalance(balanceData.balance);
@@ -193,6 +195,7 @@ export default function MobileTrading() {
           }
         }
 
+        // Fetch live positions
         const positionsData = await client.getPositionsByChain(chainKey);
         const livePositionsOnly = positionsData.filter((p) => !p.isSimulation);
 
@@ -236,6 +239,7 @@ export default function MobileTrading() {
     }
   };
 
+  // Refresh data after trade and enrich with prices
   const refreshData = async () => {
     if (!client) return;
 
@@ -247,6 +251,7 @@ export default function MobileTrading() {
     }
   };
 
+  // Handle buy with preset amount
   const handleBuyWithAmount = async (amountStr: string) => {
     if (!client || !selectedToken || isTrading) return;
 
@@ -297,6 +302,7 @@ export default function MobileTrading() {
     }
   };
 
+  // Handle custom buy amount
   const handleCustomBuy = async () => {
     const amount = Number.parseFloat(customBuyAmount);
 
@@ -308,6 +314,7 @@ export default function MobileTrading() {
     await handleBuyWithAmount(customBuyAmount);
   };
 
+  // Handle sell with preset amount (percentage based)
   const handleSellWithAmount = async (amountStr: string) => {
     if (!client || !selectedToken || isTrading) return;
 
@@ -372,6 +379,7 @@ export default function MobileTrading() {
     }
   };
 
+  // Handle custom sell amount
   const handleCustomSell = async () => {
     const amount = Number.parseFloat(customSellAmount);
 
@@ -388,6 +396,7 @@ export default function MobileTrading() {
     await handleSellWithAmount(customSellAmount);
   };
 
+  // Handle position card click
   const handlePositionClick = async (position: PositionWithPrice) => {
     if (!client || isTrading) return;
 
@@ -564,9 +573,11 @@ export default function MobileTrading() {
         const newClient = new MiniAppClient(telegramId.toString(), initData);
         setClient(newClient);
 
+        // Load chains
         const chainsData = await newClient.getAvailableChains();
         setChains(chainsData);
 
+        // Load user profile
         const profile = await newClient.getUserProfile();
         setUserProfile(profile);
 
@@ -888,18 +899,6 @@ export default function MobileTrading() {
               {Math.abs(balancePriceChange).toFixed(2)}%
             </p>
 
-            {/* ↓↓↓ PERPS BUTTON HERE ↓↓↓ */}
-            <div className="mb-3">
-              <Button
-                onClick={() => setShowPerps(true)}
-                className="w-full bg-gradient-to-r from-[#D4AF37] to-blue-400 hover:opacity-90 text-black font-bold rounded-xl h-12 flex items-center justify-center gap-2 transition-all shadow-lg"
-              >
-                <TrendingUp className="w-5 h-5" />
-                Trade Perpetuals
-              </Button>
-            </div>
-            {/* ↑↑↑ PERPS BUTTON END ↑↑↑ */}
-
             <div className="flex gap-3">
               <Button
                 onClick={() => setShowWithdrawModal(true)}
@@ -938,6 +937,7 @@ export default function MobileTrading() {
               const positionValue = position.currentPrice
                 ? Number.parseFloat(position.amountHeld) * position.currentPrice
                 : 0;
+              const isPositive = priceChange24h >= 0;
 
               return (
                 <div
@@ -1006,7 +1006,6 @@ export default function MobileTrading() {
         </div>
       </div>
 
-      {/* Bottom navigation - keep as is */}
       <div className="fixed bottom-3 left-0 right-0 bg-black border-t border-[#1A1A1A] shadow-[0_-8px_16px_rgba(0,0,0,0.35)] z-20 pb-5">
         <div className="px-6 pt-4 max-w-2xl mx-auto">
           <div className="relative">
@@ -1119,13 +1118,13 @@ export default function MobileTrading() {
       </div>
       <div className="fixed bottom-0 left-0 right-0 h-3 bg-black pointer-events-none z-10" />
 
-      {/* Token Detail Modal - keep as is */}
+      {/* Token Detail Modal */}
       {showTokenDetail && selectedToken && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              // Don't close
+              // Don't close - keep token visible
             }
           }}
         >
@@ -1133,7 +1132,287 @@ export default function MobileTrading() {
             className="bg-[#0F0F0F] w-full max-w-2xl rounded-t-3xl p-6 border-t border-[#252525] animate-slide-up max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Keep existing token detail modal content */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-white">
+                  {selectedToken.name}
+                </h2>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedToken.address);
+                    showNotification("CA copied!", "success");
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  title="Copy contract address"
+                >
+                  <Image
+                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ion_copy-tN5Kmg8bxbyMQVDSbLbfeMkejTdvGp.png"
+                    alt="Copy"
+                    width={18}
+                    height={18}
+                    className="w-4.5 h-4.5"
+                  />
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTokenDetail(false);
+                }}
+                className="text-gray-400 hover:text-white text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 mb-6 text-xs">
+              <span
+                className={
+                  selectedToken.pnlData.fiveMin.includes("-")
+                    ? "text-red-400 font-semibold"
+                    : "text-green-400 font-semibold"
+                }
+              >
+                5m: {selectedToken.pnlData.fiveMin}
+              </span>
+              <span className="text-gray-500">|</span>
+              <span
+                className={
+                  selectedToken.pnlData.oneHour.includes("-")
+                    ? "text-red-400 font-semibold"
+                    : "text-green-400 font-semibold"
+                }
+              >
+                1hr: {selectedToken.pnlData.oneHour}
+              </span>
+              <span className="text-gray-500">|</span>
+              <span
+                className={
+                  selectedToken.pnlData.twentyFourHours.includes("-")
+                    ? "text-red-400 font-semibold"
+                    : "text-green-400 font-semibold"
+                }
+              >
+                24hr: {selectedToken.pnlData.twentyFourHours}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                  Market Cap
+                </div>
+                <div className="text-md font-bold text-white">
+                  {selectedToken.marketData.marketCap}
+                </div>
+              </div>
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                  Liquidity
+                </div>
+                <div className="text-md font-bold text-white">
+                  {selectedToken.marketData.liquidity}
+                </div>
+              </div>
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                  Price
+                </div>
+                <div className="text-md font-bold text-white">
+                  {selectedToken.marketData.price}
+                </div>
+              </div>
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                  Volume 24H
+                </div>
+                <div className="text-md font-bold text-white">
+                  {selectedToken.marketData.volume24h}
+                </div>
+              </div>
+            </div>
+
+            {displayPositions.find(
+              (p) =>
+                p.tokenAddress.toLowerCase() ===
+                selectedToken.address.toLowerCase()
+            ) ? (
+              <>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide">
+                      Buy
+                    </h3>
+                    {showCustomBuyInput ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          value={customBuyAmount}
+                          onChange={(e) => setCustomBuyAmount(e.target.value)}
+                          placeholder={`Amount in ${nativeSymbol}`}
+                          className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                          disabled={isTrading}
+                        />
+                        <Button
+                          onClick={handleCustomBuy}
+                          disabled={isTrading || !customBuyAmount}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                        >
+                          {isTrading ? "..." : "Buy"}
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowCustomBuyInput(false);
+                            setCustomBuyAmount("");
+                          }}
+                          className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        {selectedToken.buyAmounts.map((amount, index) => (
+                          <Button
+                            key={index}
+                            onClick={() => {
+                              if (amount.startsWith("X")) {
+                                setShowCustomBuyInput(true);
+                              } else {
+                                handleBuyWithAmount(amount);
+                              }
+                            }}
+                            disabled={isTrading}
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12 disabled:opacity-50"
+                          >
+                            {isTrading
+                              ? "..."
+                              : amount.startsWith("X")
+                              ? `X ${nativeSymbol}`
+                              : amount}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide">
+                      Sell
+                    </h3>
+                    {showCustomSellInput ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          value={customSellAmount}
+                          onChange={(e) => setCustomSellAmount(e.target.value)}
+                          placeholder="Amount to sell"
+                          className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                          disabled={isTrading}
+                        />
+                        <Button
+                          onClick={handleCustomSell}
+                          disabled={isTrading || !customSellAmount}
+                          className="bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                        >
+                          {isTrading ? "..." : "Sell"}
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowCustomSellInput(false);
+                            setCustomSellAmount("");
+                          }}
+                          className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        {selectedToken.sellAmounts.map((amount, index) => (
+                          <Button
+                            key={index}
+                            onClick={() => {
+                              if (amount === "X") {
+                                setShowCustomSellInput(true);
+                              } else {
+                                handleSellWithAmount(amount);
+                              }
+                            }}
+                            disabled={isTrading}
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full h-12 disabled:opacity-50"
+                          >
+                            {isTrading
+                              ? "..."
+                              : amount === "X"
+                              ? "Custom"
+                              : amount}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wide">
+                    Buy
+                  </h3>
+                  {showCustomBuyInput ? (
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        value={customBuyAmount}
+                        onChange={(e) => setCustomBuyAmount(e.target.value)}
+                        placeholder={`Amount in ${nativeSymbol}`}
+                        className="flex-1 bg-[#1A1A1A] text-white border border-[#2A2A2A] rounded-lg h-12"
+                        disabled={isTrading}
+                      />
+                      <Button
+                        onClick={handleCustomBuy}
+                        disabled={isTrading || !customBuyAmount}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg h-12 px-6 disabled:opacity-50"
+                      >
+                        {isTrading ? "..." : "Buy"}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowCustomBuyInput(false);
+                          setCustomBuyAmount("");
+                        }}
+                        className="bg-[#3A3A3A] hover:bg-[#444444] text-white rounded-lg h-12 px-4"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-3">
+                      {selectedToken.buyAmounts.map((amount, index) => (
+                        <Button
+                          key={index}
+                          onClick={() => {
+                            if (amount.startsWith("X")) {
+                              setShowCustomBuyInput(true);
+                            } else {
+                              handleBuyWithAmount(amount);
+                            }
+                          }}
+                          disabled={isTrading}
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-full h-12 disabled:opacity-50"
+                        >
+                          {isTrading
+                            ? "..."
+                            : amount.startsWith("X")
+                            ? `X ${nativeSymbol}`
+                            : amount}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1157,17 +1436,6 @@ export default function MobileTrading() {
         nativeSymbol={nativeSymbol}
         telegramClient={client!}
       />
-
-      {/* ↓↓↓ PERPS MODAL ↓↓↓ */}
-      {showPerps && client && (
-        <div className="fixed inset-0 z-[100] bg-black">
-          <PerpDex 
-            onClose={() => setShowPerps(false)} 
-            telegramClient={client}
-          />
-        </div>
-      )}
-      {/* ↑↑↑ PERPS MODAL END ↑↑↑ */}
     </div>
   );
 }
