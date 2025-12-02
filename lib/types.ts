@@ -174,3 +174,121 @@ export interface WithdrawModalProps {
 }
 
 export type WithdrawStep = "amount" | "confirm" | "success" | "error";
+
+// ============================================
+// PERPETUAL TRADING TYPES
+// ============================================
+
+export interface PerpPosition {
+  id: string;
+  pair: string;
+  isLong: boolean;
+  collateral: string;
+  leverage: number;
+  entryPrice: string;
+  exitPrice?: string;
+  currentPnL: string;
+  realizedPnL?: string;
+  positionSize: string;
+  status: "OPEN" | "CLOSED";
+  chain: string;
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string;
+}
+
+export interface OpenPerpPositionRequest {
+  pair: string;
+  isLong: boolean;
+  collateral: number;
+  leverage: number;
+  entryPrice: number;
+  chain?: string;
+}
+
+export interface OpenPerpPositionResponse {
+  success: boolean;
+  position?: {
+    id: string;
+    pair: string;
+    isLong: boolean;
+    collateral: string;
+    leverage: number;
+    entryPrice: string;
+    positionSize: string;
+    status: string;
+    createdAt: string;
+  };
+  newDemoBalance?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface ClosePerpPositionResponse {
+  success: boolean;
+  position?: {
+    id: string;
+    pair: string;
+    isLong: boolean;
+    collateral: string;
+    leverage: number;
+    entryPrice: string;
+    exitPrice?: string;
+    realizedPnL?: string;
+    status: string;
+    closedAt?: string;
+  };
+  newDemoBalance?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface PerpTradingStats {
+  success: boolean;
+  telegramId: string;
+  stats: {
+    totalPositions: number;
+    openPositions: number;
+    closedPositions: number;
+    totalRealizedPnL: string;
+    currentUnrealizedPnL: string;
+    totalCollateralUsed: string;
+  };
+  positions: Array<{
+    id: string;
+    pair: string;
+    isLong: boolean;
+    collateral: string;
+    leverage: number;
+    currentPnL: string;
+    positionSize: string;
+  }>;
+}
+
+export interface PriceUpdateData {
+  price: number;
+  timestamp: number;
+  confidence?: number;
+  expo?: number;
+}
+
+export interface WebSocketMessage {
+  type: 'connected' | 'subscribed' | 'unsubscribed' | 'price_update' | 'price' | 'error';
+  message?: string;
+  supportedPairs?: string[];
+  pairs?: string[];
+  pair?: string;
+  data?: PriceUpdateData;
+}
+
+export type PerpPair = 
+  | "BTC/USD"
+  | "ETH/USD"
+  | "SOL/USD"
+  | "BNB/USD"
+  | "DOGE/USD"
+  | "XRP/USD"
+  | "ADA/USD"
+  | "AVAX/USD"
+  | "DOT/USD"
+  | "MATIC/USD";
