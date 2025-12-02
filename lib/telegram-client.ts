@@ -15,6 +15,7 @@ import type {
 } from "./types";
 
 export class MiniAppClient {
+  [x: string]: any;
   private telegramId: string;
   private backendUrl: string;
   private initData: string;
@@ -22,7 +23,7 @@ export class MiniAppClient {
   constructor(
     telegramId: string,
     initData: string,
-    backendUrl = "hhttps://8988e8ca4a74.ngrok-free.app"
+    backendUrl = "https://8988e8ca4a74.ngrok-free.app"
   ) {
     this.telegramId = telegramId;
     this.initData = initData;
