@@ -15,7 +15,6 @@ import type {
 } from "./types";
 
 export class MiniAppClient {
-  [x: string]: any;
   private telegramId: string;
   private backendUrl: string;
   private initData: string;
@@ -23,11 +22,15 @@ export class MiniAppClient {
   constructor(
     telegramId: string,
     initData: string,
-    backendUrl = "https://8988e8ca4a74.ngrok-free.app"
+    backendUrl = "https://delcie-unvariant-unlimitedly.ngrok-free.dev"
   ) {
     this.telegramId = telegramId;
     this.initData = initData;
     this.backendUrl = backendUrl;
+  }
+
+  getTelegramId(): string {
+    return this.telegramId;
   }
 
   private getHeaders(): Record<string, string> {
