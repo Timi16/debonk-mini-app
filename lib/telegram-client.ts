@@ -8,6 +8,10 @@ import type {
   BuyResponse,
   SellResponse,
   DemoBalance,
+  PerpPosition,
+  OpenPerpPositionResponse,
+  ClosePerpPositionResponse,
+  PerpTradingStats,
 } from "./types";
 
 export class MiniAppClient {
@@ -287,7 +291,6 @@ export class MiniAppClient {
     }
   }
 
-  // 🔥 UPDATED: Match actual API response structure
   async getDemoBalance(chain: string): Promise<DemoBalance> {
     try {
       const res = await fetch(
@@ -480,5 +483,178 @@ export class MiniAppClient {
       ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
 
     return { profitLoss, profitLossPercent };
+  }
+
+  // ============================================
+  // PERPETUAL TRADING METHODS
+  // ============================================
+
+  async openPerpPosition(
+    pair: string,
+    isLong: boolean,
+    collateral: number,
+    leverage: number,
+    entryPrice: number,
+    chain = "base"
+  ): Promise<OpenPerpPositionResponse> {
+    try {
+      const res = await fetch(
+        `${this.backendUrl}/api/perp/open/${this.telegramId}`,
+        {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            pair,
+            isLong,
+            collateral,
+            leverage,
+            entryPrice,
+            chain,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`openPerpPosition error for ${pair}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  async closePerpPosition(
+    positionId: string,
+    exitPrice: number
+  ): Promise<ClosePerpPositionResponse> {
+    try {
+      const res = await fetch(
+        `${this.backendUrl}/api/perp/close/${positionId}`,
+        {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            exitPrice,
+            telegramId: this.telegramId,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`closePerpPosition error for ${positionId}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  async getPerpPositions(
+    status?: "OPEN" | "CLOSED",
+    chain?: string
+  ): Promise<{ success: boolean; positions?: PerpPosition[]; error?: string }> {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.append("status", status);
+      if (chain) params.append("chain", chain);
+
+      const queryString = params.toString();
+      const url = `${this.backendUrl}/api/perp/positions/${this.telegramId}${
+        queryString ? `?${queryString}` : ""
+      }`;
+
+      const res = await fetch(url, {
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error("getPerpPositions error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  async updatePerpPositionPnL(
+    positionId: string,
+    currentPrice: number
+  ): Promise<{ success: boolean; position?: any; error?: string }> {
+    try {
+      const res = await fetch(
+        `${this.backendUrl}/api/perp/update-pnl/${positionId}`,
+        {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            currentPrice,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || `HTTP ${res.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`updatePerpPositionPnL error for ${positionId}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  async getPerpTradingStats(chain?: string): Promise<PerpTradingStats> {
+    try {
+      const params = new URLSearchParams();
+      if (chain) params.append("chain", chain);
+
+      const queryString = params.toString();
+      const url = `${this.backendUrl}/api/perp/stats/${this.telegramId}${
+        queryString ? `?${queryString}` : ""
+      }`;
+
+      const res = await fetch(url, {
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      return await res.json();
+    } catch (error) {
+      console.error("getPerpTradingStats error:", error);
+      throw error;
+    }
   }
 }
