@@ -1,44 +1,33 @@
 "use client"
-import React, { useState, useEffect } from "react"
-import type { MiniAppClient } from "@/lib/telegram-client"
-import { PerpPriceWebSocket } from "@/lib/perps"
-import type { PerpPair, PriceUpdateData, PerpPosition, PerpTradingStats } from "@/lib/types"
-
-// ============================================
-// COMPONENT-SPECIFIC TYPES
-// ============================================
+import { useState, useEffect, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import Image from "next/image"
+import { ArrowUpRight, ArrowDownLeft, TrendingUp, ChevronLeft, Settings, X } from "lucide-react"
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
 interface PerpDexProps {
   onClose: () => void
-  telegramClient: MiniAppClient
+  telegramClient: any
 }
 
 interface TradingPairData {
-  symbol: PerpPair
+  symbol: string
   price: number
   change24h: number
-  priceHistory: number[]
 }
 
-const TRADING_PAIRS: PerpPair[] = [
-  "BTC/USD",
-  "ETH/USD",
-  "SOL/USD",
-  "BNB/USD",
-  "DOGE/USD",
-  "XRP/USD",
-  "ADA/USD",
-  "AVAX/USD",
-  "DOT/USD",
-  "MATIC/USD"
+const TRADING_PAIRS = [
+  { symbol: "BTC/USD", initialPrice: 42380.5 },
+  { symbol: "ETH/USD", initialPrice: 2380.5 },
+  { symbol: "SOL/USD", initialPrice: 192.3 },
+  { symbol: "XRP/USD", initialPrice: 2.45 },
+  { symbol: "ADA/USD", initialPrice: 1.15 },
+  { symbol: "DOGE/USD", initialPrice: 0.42 },
 ]
 
 export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
-  const wsRef = React.useRef<PerpPriceWebSocket | null>(null)
-  const [wsConnected, setWsConnected] = useState(false)
-
-  const [activeTab, setActiveTab] = useState<"chart" | "trade" | "positions">("chart")
-  const [selectedPair, setSelectedPair] = useState<PerpPair>("BTC/USD")
+  const [activeTab, setActiveTab] = useState<"chart" | "trade">("chart")
+  const [selectedPair, setSelectedPair] = useState<string>("BTC/USD")
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [tradeMode, setTradeMode] = useState<"long" | "short" | null>(null)
   const [timeframe, setTimeframe] = useState<"1h" | "4h" | "1d" | "1w">("1h")
@@ -46,8 +35,9 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
   const [collateral, setCollateral] = useState("")
   const [stopLoss, setStopLoss] = useState<number | null>(null)
   const [takeProfit, setTakeProfit] = useState<number | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
   const [demoBalance, setDemoBalance] = useState(0)
-  const [positions, setPositions] = useState<PerpPosition[]>([])
+  const [positions, setPositions] = useState<any[]>([])
   const [tradingPairs, setTradingPairs] = useState<TradingPairData[]>([])
   const [isTrading, setIsTrading] = useState(false)
   const [notification, setNotification] = useState<{
@@ -55,57 +45,14 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     type: "success" | "error" | "info"
   } | null>(null)
   const [chartData, setChartData] = useState<Array<{ time: string; price: number }>>([])
-  const [stats, setStats] = useState<PerpTradingStats | null>(null)
+  const [stats, setStats] = useState<any>(null)
 
   const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
   }
 
-  useEffect(() => {
-    const initWebSocket = async () => {
-      try {
-        wsRef.current = new PerpPriceWebSocket("wss://77be5c75e373.ngrok-free.app", telegramClient.getTelegramId())
-
-        await wsRef.current.connect()
-        setWsConnected(true)
-
-        wsRef.current.subscribeToPairs(TRADING_PAIRS)
-
-        TRADING_PAIRS.forEach((pair) => {
-          wsRef.current?.onPriceUpdate(pair, (data: PriceUpdateData) => {
-            setTradingPairs((prev) =>
-              prev.map((p) => {
-                if (p.symbol === pair) {
-                  const history = [...(p.priceHistory || []), data.price]
-                  if (history.length > 100) history.shift()
-                  return {
-                    ...p,
-                    price: data.price,
-                    priceHistory: history,
-                  }
-                }
-                return p
-              }),
-            )
-          })
-        })
-
-        console.log("[v0] WebSocket initialized and subscribed to pairs")
-      } catch (error) {
-        console.error("[v0] WebSocket initialization error:", error)
-        showNotification("Failed to connect to price feeds", "error")
-      }
-    }
-
-    initWebSocket()
-
-    return () => {
-      wsRef.current?.close()
-    }
-  }, [])
-
-  const generateChartData = (basePrice: number) => {
+  const generateChartData = useCallback((basePrice: number) => {
     const data = []
     for (let i = 0; i < 50; i++) {
       const randomWalk = Math.sin(i * 0.2) * 8 + Math.random() * 4
@@ -115,7 +62,7 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
       })
     }
     return data
-  }
+  }, [])
 
   useEffect(() => {
     const initPerps = async () => {
@@ -125,11 +72,10 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
           setDemoBalance(Number.parseFloat(balanceData.demoBalance))
         }
 
-        const initialPairs: TradingPairData[] = TRADING_PAIRS.map((pair) => ({
-          symbol: pair,
-          price: 0,
+        const initialPairs = TRADING_PAIRS.map((pair) => ({
+          symbol: pair.symbol,
+          price: pair.initialPrice,
           change24h: 0,
-          priceHistory: [],
         }))
         setTradingPairs(initialPairs)
 
@@ -143,41 +89,18 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
           setStats(statsData)
         }
 
-        setChartData(generateChartData(40000))
+        const initialPair = TRADING_PAIRS.find((p) => p.symbol === selectedPair)
+        if (initialPair) {
+          setChartData(generateChartData(initialPair.initialPrice))
+        }
       } catch (error) {
-        console.error("[v0] Error initializing perps:", error)
+        console.error("Error initializing perps:", error)
         showNotification("Failed to initialize perp trading", "error")
       }
     }
 
     initPerps()
-  }, [telegramClient])
-
-  useEffect(() => {
-    const refreshData = async () => {
-      try {
-        const response = await telegramClient.getPerpPositions("OPEN")
-        if (response.success && response.positions) {
-          setPositions(response.positions)
-        }
-
-        const statsData = await telegramClient.getPerpTradingStats()
-        if (statsData.success) {
-          setStats(statsData)
-        }
-
-        const balanceData = await telegramClient.getDemoBalance("base")
-        if (balanceData.success) {
-          setDemoBalance(Number.parseFloat(balanceData.demoBalance))
-        }
-      } catch (error) {
-        console.error("[v0] Error refreshing perp data:", error)
-      }
-    }
-
-    const interval = setInterval(refreshData, 5000)
-    return () => clearInterval(interval)
-  }, [telegramClient])
+  }, [telegramClient, selectedPair, generateChartData])
 
   const handleOpenPosition = async () => {
     if (!tradeMode || !collateral || isTrading) return
@@ -192,8 +115,8 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     }
 
     const currentPrice = tradingPairs.find((p) => p.symbol === selectedPair)?.price
-    if (!currentPrice || currentPrice === 0) {
-      showNotification("Price not available, please wait for WebSocket update", "error")
+    if (!currentPrice) {
+      showNotification("Price not available", "error")
       return
     }
 
@@ -208,7 +131,6 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         currentPrice,
         "base",
       )
-
       if (response.success) {
         showNotification("Position opened successfully!", "success")
         if (response.newDemoBalance) {
@@ -216,26 +138,21 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         }
         setTradeMode(null)
         setCollateral("")
-        setActiveTab("positions")
-
-        const posResponse = await telegramClient.getPerpPositions("OPEN")
-        if (posResponse.success && posResponse.positions) {
-          setPositions(posResponse.positions)
-        }
+        setActiveTab("chart")
       } else {
         showNotification(`Failed to open position: ${response.error}`, "error")
       }
     } catch (error) {
-      console.error("[v0] Error opening position:", error)
+      console.error("Error opening position:", error)
       showNotification("Error opening position", "error")
     } finally {
       setIsTrading(false)
     }
   }
 
-  const handleClosePosition = async (positionId: string, position: PerpPosition) => {
-    const currentPrice = tradingPairs.find((p) => p.symbol === position.pair)?.price
-    if (!currentPrice || currentPrice === 0) {
+  const handleClosePosition = async (positionId: string) => {
+    const currentPrice = tradingPairs.find((p) => p.symbol === selectedPair)?.price
+    if (!currentPrice) {
       showNotification("Price not available", "error")
       return
     }
@@ -244,7 +161,6 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     showNotification("Closing position...", "info")
     try {
       const response = await telegramClient.closePerpPosition(positionId, currentPrice)
-
       if (response.success) {
         const pnl = response.position?.realizedPnL ? Number.parseFloat(response.position.realizedPnL) : 0
         showNotification(
@@ -254,33 +170,23 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         if (response.newDemoBalance) {
           setDemoBalance(Number.parseFloat(response.newDemoBalance))
         }
-
-        const posResponse = await telegramClient.getPerpPositions("OPEN")
-        if (posResponse.success && posResponse.positions) {
-          setPositions(posResponse.positions)
-        }
-
-        const statsData = await telegramClient.getPerpTradingStats()
-        if (statsData.success) {
-          setStats(statsData)
-        }
       } else {
         showNotification(`Failed to close position: ${response.error}`, "error")
       }
     } catch (error) {
-      console.error("[v0] Error closing position:", error)
+      console.error("Error closing position:", error)
       showNotification("Error closing position", "error")
     } finally {
       setIsTrading(false)
     }
   }
 
-  const handlePairChange = (pair: PerpPair) => {
+  const handlePairChange = (pair: string) => {
     setSelectedPair(pair)
     setDropdownOpen(false)
-    const pairData = tradingPairs.find((p) => p.symbol === pair)
-    if (pairData && pairData.price > 0) {
-      setChartData(generateChartData(pairData.price))
+    const pairData = TRADING_PAIRS.find((p) => p.symbol === pair)
+    if (pairData) {
+      setChartData(generateChartData(pairData.initialPrice))
     }
   }
 
@@ -294,42 +200,48 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     <div className="flex flex-col h-screen">
       <div className="flex items-center justify-between p-3 sm:p-4 md:px-6 border-b border-[#2A2A2A] bg-[#0A0A0A]/95 backdrop-blur-md">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-2">
-            {/* Placeholder for Debonk Logo */}
-            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-300 rounded-full"></div>
-            <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-[#D4AF37] to-blue-400 bg-clip-text text-transparent truncate">
-              Perp DEX
-            </h1>
-          </div>
-          <div
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${wsConnected ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}
-          >
-            {/* Placeholder for Activity Icon */}
-            <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-            <span>{wsConnected ? "Live" : "Offline"}</span>
-          </div>
+          <Image src="/images/image.png" alt="Debonk Logo" width={32} height={32} className="w-7 h-7 sm:w-8 sm:h-8" />
+          <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-[#D4AF37] to-blue-400 bg-clip-text text-transparent truncate">
+            Perp DEX
+          </h1>
         </div>
         <button
           onClick={onClose}
           className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#1A1A1A] flex-shrink-0 flex items-center justify-center hover:bg-[#252525] transition-colors text-gray-400 hover:text-white"
         >
-          {/* Placeholder for X Icon */}
-          <div className="w-4 h-4 sm:w-5 sm:h-5 bg-gray-300 rounded-full"></div>
+          <X className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gradient-to-br from-[#0A0A0A] to-[#1A1A1A] p-4 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex-1">
-            <div className="relative mb-4 w-fit">
+
+      {notification && (
+        <div
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3 py-2 sm:px-4 sm:py-3 rounded-lg shadow-lg text-sm sm:text-base ${
+            notification.type === "success"
+              ? "bg-green-500/90 text-white"
+              : notification.type === "error"
+                ? "bg-red-500/90 text-white"
+                : "bg-blue-500/90 text-white"
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-hidden bg-gradient-to-br from-[#0A0A0A] to-[#1A1A1A] p-3 sm:p-4 md:p-6 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <div className="flex-1 min-w-0">
+            <div className="relative mb-3 sm:mb-4 w-fit">
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#D4AF37]/20 to-blue-500/20 border border-[#D4AF37]/50 rounded-xl hover:border-[#D4AF37] transition-all"
+                className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-[#D4AF37]/20 to-blue-500/20 border border-[#D4AF37]/50 rounded-xl hover:border-[#D4AF37] transition-all duration-300 text-sm sm:text-base"
               >
                 <span className="font-bold bg-gradient-to-r from-[#D4AF37] to-blue-400 bg-clip-text text-transparent">
                   {selectedPair}
                 </span>
                 <svg
-                  className={`w-4 h-4 text-[#D4AF37] transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                  className={`w-4 h-4 sm:w-5 sm:h-5 text-[#D4AF37] transition-transform duration-300 ${
+                    dropdownOpen ? "rotate-180" : ""
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -339,19 +251,22 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute top-full mt-2 w-56 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto">
+                <div className="absolute top-full mt-2 w-48 sm:w-56 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 max-h-64 overflow-y-auto">
                   {tradingPairs.map((pair) => (
                     <button
                       key={pair.symbol}
                       onClick={() => handlePairChange(pair.symbol)}
-                      className={`w-full px-4 py-3 flex items-center justify-between border-b border-[#2A2A2A] transition-colors last:border-b-0 ${
+                      className={`w-full px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between border-b border-[#2A2A2A] transition-colors last:border-b-0 text-sm sm:text-base ${
                         selectedPair === pair.symbol
                           ? "bg-[#D4AF37]/20 text-[#D4AF37]"
                           : "hover:bg-[#252525] text-white"
                       }`}
                     >
                       <span className="font-semibold">{pair.symbol}</span>
-                      <span className="text-xs">${pair.price.toFixed(2)}</span>
+                      <span className={pair.change24h >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        {pair.change24h >= 0 ? "+" : ""}
+                        {pair.change24h.toFixed(2)}%
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -359,131 +274,65 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
             </div>
 
             <div>
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <p className="text-4xl md:text-5xl font-bold text-white">${currentPrice.toFixed(2)}</p>
+              <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap">
+                <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-white">${currentPrice.toFixed(2)}</p>
                 <div
-                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm ${
+                  className={`flex items-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm sm:text-base ${
                     change24h >= 0 ? "bg-emerald-500/20" : "bg-red-500/20"
                   }`}
                 >
+                  <TrendingUp
+                    className={`w-4 h-4 sm:w-5 sm:h-5 ${change24h >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                  />
                   <span className={`font-semibold ${change24h >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {change24h >= 0 ? "+" : ""}
                     {change24h.toFixed(2)}%
                   </span>
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-1 sm:mt-2">24h Change</p>
             </div>
           </div>
 
-          <div className="flex gap-2">
-            {(["1h", "4h", "1d", "1w"] as const).map((tf) => (
-              <button
-                key={tf}
-                onClick={() => setTimeframe(tf)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  timeframe === tf
-                    ? "bg-[#D4AF37] text-black"
-                    : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A] hover:border-[#3A3A3A]"
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3">
-            <p className="text-xs text-gray-400 mb-1">Open Positions</p>
-            <p className="text-2xl font-bold text-white">{positions.length}</p>
-          </div>
-          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3">
-            <p className="text-xs text-gray-400 mb-1">Total PnL</p>
-            <p
-              className={`text-2xl font-bold ${
-                stats?.stats?.totalRealizedPnL && Number.parseFloat(stats.stats.totalRealizedPnL) >= 0
-                  ? "text-emerald-400"
-                  : "text-red-400"
-              }`}
+          <div className="flex flex-col items-end gap-3 sm:gap-4 w-full sm:w-auto">
+            <div className="flex gap-1 sm:gap-2 w-full sm:w-auto justify-end">
+              {(["1h", "4h", "1d", "1w"] as const).map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                    timeframe === tf
+                      ? "bg-[#D4AF37] text-black"
+                      : "bg-[#1A1A1A] text-gray-400 border border-[#2A2A2A] hover:border-[#3A3A3A]"
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center hover:bg-[#252525] transition-colors text-gray-400 hover:text-[#D4AF37]"
             >
-              ${stats?.stats?.totalRealizedPnL ? Number.parseFloat(stats.stats.totalRealizedPnL).toFixed(2) : "0.00"}
-            </p>
-          </div>
-          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3">
-            <p className="text-xs text-gray-400 mb-1">Balance</p>
-            <p className="text-2xl font-bold text-white">${demoBalance.toFixed(2)}</p>
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setTradeMode("long")
-              setActiveTab("trade")
-            }}
-            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-4 font-bold text-lg rounded-xl transition-all"
-          >
-            📈 Long
-          </button>
-          <button
-            onClick={() => {
-              setTradeMode("short")
-              setActiveTab("trade")
-            }}
-            className="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 font-bold text-lg rounded-xl transition-all"
-          >
-            📉 Short
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-
-  const TradePage = () => (
-    <div className="flex-1 overflow-y-auto bg-gradient-to-br from-[#0A0A0A] to-[#1A1A1A] p-4">
-      {tradeMode && (
-        <div className="max-w-md mx-auto space-y-4">
-          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0F0F0F] border border-[#2A2A2A] rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  tradeMode === "long" ? "bg-emerald-500/20" : "bg-red-500/20"
-                }`}
-              >
-                <span className="text-xl">{tradeMode === "long" ? "📈" : "📉"}</span>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">Open Position</p>
-                <p className={`text-2xl font-bold ${tradeMode === "long" ? "text-emerald-400" : "text-red-400"}`}>
-                  {tradeMode?.toUpperCase()} {selectedPair}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-xs text-gray-400 mb-2">Collateral ($)</label>
-                <input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={collateral}
-                  onChange={(e) => setCollateral(e.target.value)}
-                  className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]"
-                />
-                <p className="text-xs text-gray-500 mt-1">Available: ${demoBalance.toFixed(2)}</p>
-              </div>
-
+        {showSettings && (
+          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div>
                 <label className="block text-xs text-gray-400 mb-2">Leverage</label>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   {[2, 5, 10].map((lev) => (
                     <button
                       key={lev}
                       onClick={() => setLeverage(lev)}
-                      className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                      className={`flex-1 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
                         leverage === lev
                           ? "bg-[#D4AF37] text-black"
-                          : "bg-[#0A0A0A] border border-[#2A2A2A] text-white hover:bg-[#1A1A1A]"
+                          : "bg-[#0A0A0A] border border-[#2A2A2A] text-gray-400 hover:border-[#3A3A3A]"
                       }`}
                     >
                       {lev}x
@@ -491,193 +340,310 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
                   ))}
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-2">Stop Loss ($)</label>
-                  <input
-                    type="number"
-                    placeholder="Min price"
-                    value={stopLoss || ""}
-                    onChange={(e) => setStopLoss(e.target.value ? Number.parseFloat(e.target.value) : null)}
-                    className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-2">Take Profit ($)</label>
-                  <input
-                    type="number"
-                    placeholder="Max price"
-                    value={takeProfit || ""}
-                    onChange={(e) => setTakeProfit(e.target.value ? Number.parseFloat(e.target.value) : null)}
-                    className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 py-4 border-t border-b border-[#2A2A2A] mb-6">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Position Size</p>
-                <p className="font-semibold text-white">${positionSize.toFixed(2)}</p>
+                <label className="block text-xs text-gray-400 mb-2">Stop Loss ($)</label>
+                <input
+                  type="number"
+                  placeholder="Min price"
+                  value={stopLoss || ""}
+                  onChange={(e) => setStopLoss(e.target.value ? Number.parseFloat(e.target.value) : null)}
+                  className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]"
+                />
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Liquidation Price</p>
-                <p className="font-semibold text-white">${liquidationPrice.toFixed(2)}</p>
+                <label className="block text-xs text-gray-400 mb-2">Take Profit ($)</label>
+                <input
+                  type="number"
+                  placeholder="Max price"
+                  value={takeProfit || ""}
+                  onChange={(e) => setTakeProfit(e.target.value ? Number.parseFloat(e.target.value) : null)}
+                  className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]"
+                />
               </div>
             </div>
+          </div>
+        )}
 
-            <button
-              onClick={handleOpenPosition}
-              disabled={isTrading || !collateral}
-              className={`w-full py-4 font-bold text-lg rounded-xl transition-opacity disabled:opacity-50 ${
-                tradeMode === "long"
-                  ? "bg-emerald-500 hover:opacity-90 text-white"
-                  : "bg-red-500 hover:opacity-90 text-white"
+        <div className="flex-1 mb-4 sm:mb-6 min-h-48 sm:min-h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#D4AF37" stopOpacity={0.01} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
+              <XAxis
+                dataKey="time"
+                tick={{ fill: "#666", fontSize: 11 }}
+                axisLine={{ stroke: "#2A2A2A" }}
+                interval={Math.floor(chartData.length / 6)}
+              />
+              <YAxis
+                tick={{ fill: "#666", fontSize: 11 }}
+                axisLine={{ stroke: "#2A2A2A" }}
+                domain={["dataMin - 5", "dataMax + 5"]}
+                width={45}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#0A0A0A",
+                  border: "1px solid #2A2A2A",
+                  borderRadius: "12px",
+                  padding: "12px",
+                  fontSize: 12,
+                }}
+                labelStyle={{ color: "#D4AF37", fontSize: 12 }}
+                formatter={(value: any) => [`$${value.toFixed(2)}`, "Price"]}
+                cursor={{ stroke: "#D4AF37", strokeWidth: 2 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="price"
+                stroke="#D4AF37"
+                strokeWidth={2}
+                fill="url(#colorPrice)"
+                isAnimationActive={true}
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-2.5 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Open Positions</p>
+            <p className="text-lg sm:text-2xl font-bold text-white">{positions.length}</p>
+          </div>
+          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-2.5 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Total PnL</p>
+            <p
+              className={`text-lg sm:text-2xl font-bold ${
+                stats?.stats?.totalRealizedPnL && Number.parseFloat(stats.stats.totalRealizedPnL) >= 0
+                  ? "text-emerald-400"
+                  : "text-red-400"
               }`}
             >
-              {isTrading ? "Opening..." : `Open ${tradeMode?.toUpperCase()} Position`}
-            </button>
+              {stats?.stats?.totalRealizedPnL
+                ? `$${Number.parseFloat(stats.stats.totalRealizedPnL).toFixed(2)}`
+                : "$0.00"}
+            </p>
+          </div>
+          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-2.5 sm:p-4 col-span-2 sm:col-span-1">
+            <p className="text-xs text-gray-400 mb-1">Balance</p>
+            <p className="text-lg sm:text-2xl font-bold text-white">${demoBalance.toFixed(2)}</p>
           </div>
         </div>
-      )}
 
-      {!tradeMode && (
-        <div className="max-w-md mx-auto">
-          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4">How It Works</h3>
-            <div className="space-y-4 text-sm text-gray-300">
+        <div className="flex gap-2 sm:gap-4">
+          <Button
+            onClick={() => {
+              setTradeMode("long")
+              setActiveTab("trade")
+            }}
+            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-4 sm:py-6 font-bold text-base sm:text-lg rounded-xl flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-emerald-500/30"
+          >
+            <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="hidden sm:inline">Long</span>
+            <span className="sm:hidden">L</span>
+          </Button>
+          <Button
+            onClick={() => {
+              setTradeMode("short")
+              setActiveTab("trade")
+            }}
+            className="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 sm:py-6 font-bold text-base sm:text-lg rounded-xl flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-red-500/30"
+          >
+            <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="hidden sm:inline">Short</span>
+            <span className="sm:hidden">S</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const TradePage = () => (
+    <div className="min-h-screen bg-gradient-to-br from-[#0A0A0A] to-[#1A1A1A] flex flex-col">
+      <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 md:px-6 border-b border-[#2A2A2A] bg-[#0A0A0A]/95 backdrop-blur-md">
+        <button
+          onClick={() => setActiveTab("chart")}
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525] transition-colors flex-shrink-0"
+        >
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+        </button>
+        <h1 className="text-base sm:text-lg font-bold text-white truncate">
+          {tradeMode ? `${tradeMode.toUpperCase()} ${selectedPair}` : "Trade"}
+        </h1>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6 max-w-2xl mx-auto w-full pb-24 sm:pb-32">
+        {positions.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-xs sm:text-sm font-semibold text-gray-400 mb-3 sm:mb-4 uppercase tracking-wide">
+              Open Positions
+            </h2>
+            <div className="space-y-2 sm:space-y-3">
+              {positions.map((position) => {
+                const pairPrice = tradingPairs.find((p) => p.symbol === position.pair)?.price
+                const entryPrice = Number.parseFloat(position.entryPrice)
+                const pnl = pairPrice
+                  ? (position.isLong ? pairPrice - entryPrice : entryPrice - pairPrice) *
+                    Number.parseFloat(position.positionSize)
+                  : 0
+                return (
+                  <div key={position.id} className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                        <span className="text-base sm:text-lg font-bold text-white truncate">{position.pair}</span>
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded whitespace-nowrap ${
+                            position.isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          }`}
+                        >
+                          {position.isLong ? "LONG" : "SHORT"} {position.leverage}x
+                        </span>
+                      </div>
+                      <Button
+                        onClick={() => handleClosePosition(position.id)}
+                        disabled={isTrading}
+                        className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 sm:px-4 py-1 rounded-full disabled:opacity-50 flex-shrink-0"
+                      >
+                        {isTrading ? "..." : "Close"}
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
+                      <div>
+                        <p className="text-gray-400 text-xs mb-0.5">Entry</p>
+                        <p className="text-white font-medium">${entryPrice.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs mb-0.5">Current</p>
+                        <p className="text-white font-medium">${pairPrice?.toFixed(2) || "0.00"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs mb-0.5">PnL</p>
+                        <p className={`font-bold ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {tradeMode && (
+          <div className="max-w-md mx-auto">
+            <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0F0F0F] border border-[#2A2A2A] rounded-2xl p-4 sm:p-8 mb-6">
+              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <div
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0 flex items-center justify-center ${
+                    tradeMode === "long" ? "bg-emerald-500/20" : "bg-red-500/20"
+                  }`}
+                >
+                  {tradeMode === "long" ? (
+                    <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
+                  ) : (
+                    <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-400">Open Position</p>
+                  <p
+                    className={`text-lg sm:text-2xl font-bold ${
+                      tradeMode === "long" ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {tradeMode?.toUpperCase()} {selectedPair}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-2">Collateral ($)</label>
+                  <input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={collateral}
+                    onChange={(e) => setCollateral(e.target.value)}
+                    className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Available: ${demoBalance.toFixed(2)}</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-2">Leverage (x)</label>
+                  <div className="flex gap-2 mb-2">
+                    {[2, 5, 10].map((lev) => (
+                      <button
+                        key={lev}
+                        onClick={() => setLeverage(lev)}
+                        className={`flex-1 py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium ${
+                          leverage === lev
+                            ? "bg-[#D4AF37] text-black"
+                            : "bg-[#0A0A0A] border border-[#2A2A2A] text-white hover:bg-[#1A1A1A]"
+                        }`}
+                      >
+                        {lev}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 py-3 sm:py-4 border-t border-b border-[#2A2A2A] mb-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Position Size</p>
+                  <p className="font-semibold text-white text-sm sm:text-base">${positionSize.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Liquidation Price</p>
+                  <p className="font-semibold text-white text-sm sm:text-base">${liquidationPrice.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleOpenPosition}
+                disabled={isTrading || !collateral}
+                className={`w-full py-4 sm:py-6 font-bold text-base sm:text-lg rounded-xl transition-opacity disabled:opacity-50 ${
+                  tradeMode === "long"
+                    ? "bg-emerald-500 hover:opacity-90 text-white"
+                    : "bg-red-500 hover:opacity-90 text-white"
+                }`}
+              >
+                {isTrading ? "Opening..." : `Open ${tradeMode?.toUpperCase()} Position`}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!tradeMode && (
+          <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">How It Works</h3>
+            <div className="space-y-2 sm:space-y-4 text-xs sm:text-sm text-gray-300">
               <p>
                 <strong className="text-emerald-400">Long:</strong> Profit when price goes up. You're betting the asset
-                will increase.
+                will increase in value.
               </p>
               <p>
                 <strong className="text-red-400">Short:</strong> Profit when price goes down. You're betting the asset
-                will decrease.
+                will decrease in value.
               </p>
               <p>
                 <strong className="text-[#D4AF37]">Leverage:</strong> Multiply your position size. Higher leverage =
                 higher risk and reward.
               </p>
-              <p className="text-yellow-400 pt-2">⚠️ This is demo mode. No real funds at risk.</p>
+              <p className="text-yellow-400">⚠️ This is demo mode. No real funds at risk.</p>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  )
-
-  const PositionsPage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A0A0A] to-[#1A1A1A] flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-[#2A2A2A] bg-[#0A0A0A]/95 backdrop-blur-md">
-        <h1 className="text-lg font-bold text-white">Open Positions</h1>
-        <button
-          onClick={onClose}
-          className="w-10 h-10 rounded-full bg-[#1A1A1A] flex items-center justify-center hover:bg-[#252525]"
-        >
-          {/* Placeholder for X Icon */}
-          <div className="w-5 h-5 bg-gray-300 rounded-full"></div>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {positions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-            <p className="text-lg font-semibold mb-2">No open positions</p>
-            <p className="text-sm">Start trading to open positions</p>
-          </div>
-        ) : (
-          positions.map((position) => (
-            <div key={position.id} className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-semibold text-[#D4AF37]">{position.pair}</p>
-                  <p className="text-sm text-gray-400">
-                    {position.isLong ? "📈 Long" : "📉 Short"} • {position.leverage}x
-                  </p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${position.status === "OPEN" ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-500/20 text-gray-400"}`}
-                >
-                  {position.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-gray-400">Entry Price</p>
-                  <p className="font-semibold text-white">${Number.parseFloat(position.entryPrice).toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Position Size</p>
-                  <p className="font-semibold text-white">${Number.parseFloat(position.positionSize).toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Collateral</p>
-                  <p className="font-semibold text-white">${Number.parseFloat(position.collateral).toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Current PnL</p>
-                  <p
-                    className={`font-semibold ${Number.parseFloat(position.currentPnL) >= 0 ? "text-emerald-400" : "text-red-400"}`}
-                  >
-                    {Number.parseFloat(position.currentPnL) >= 0 ? "+" : ""}$
-                    {Number.parseFloat(position.currentPnL).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              {position.status === "OPEN" && (
-                <button
-                  onClick={() => handleClosePosition(position.id, position)}
-                  disabled={isTrading}
-                  className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg transition-colors"
-                >
-                  {isTrading ? "Processing..." : "Close Position"}
-                </button>
-              )}
-            </div>
-          ))
         )}
       </div>
     </div>
   )
 
-  return (
-    <div className="flex flex-col h-screen bg-[#0A0A0A]">
-      {notification && (
-        <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-lg shadow-lg ${
-            notification.type === "success"
-              ? "bg-green-500/90"
-              : notification.type === "error"
-                ? "bg-red-500/90"
-                : "bg-blue-500/90"
-          } text-white`}
-        >
-          {notification.message}
-        </div>
-      )}
-
-      <div className="flex border-b border-[#2A2A2A]">
-        {(["chart", "trade", "positions"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-3 font-semibold text-sm uppercase tracking-wider transition-colors ${
-              activeTab === tab ? "text-[#D4AF37] border-b-2 border-[#D4AF37]" : "text-gray-400 hover:text-gray-200"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-hidden">
-        {activeTab === "chart" && <ChartPage />}
-        {activeTab === "trade" && <TradePage />}
-        {activeTab === "positions" && <PositionsPage />}
-      </div>
-    </div>
-  )
+  return activeTab === "chart" ? <ChartPage /> : <TradePage />
 }
