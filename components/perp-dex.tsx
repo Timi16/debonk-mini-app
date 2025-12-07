@@ -30,7 +30,7 @@ const TRADING_PAIRS: PerpPair[] = [
   "ADA/USD",
   "AVAX/USD",
   "DOT/USD",
-  "MATIC/USD",
+  "MATIC/USD"
 ]
 
 export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
