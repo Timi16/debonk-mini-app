@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import logo from "@/assets/logo.webp";
 import WalletSkeleton from "./loading-skeleton";
+import { te } from "date-fns/locale";
+
 
 let WebApp: any = null;
 
@@ -540,11 +542,23 @@ export default function MobileTrading() {
             return;
           }
         }
+        let telegramId: string | undefined = undefined;
 
-        const telegramId = WebApp?.initDataUnsafe?.user?.id;
-        const initData = WebApp?.initData;
+    
+        if (process.env.NODE_ENV && process.env.NODE_ENV === "development") {
+          console.log("[v0] Running in development mode");
+          telegramId = "1234567890";
+        }else{
 
-        if (!telegramId) {
+          telegramId = WebApp?.initDataUnsafe?.user?.id;
+        }
+        console.log("[v0] Telegram ID from SDK:", telegramId);
+        let initData = WebApp?.initData;
+
+        // In development we may not have a real Telegram WebApp initData available
+        // (eg. running locally). Allow dev mode to proceed by using a harmless
+        // fallback and skip the hard failure checks that are required in prod.
+        if (!telegramId && process.env.NODE_ENV !== "development") {
           console.error("[v0] Could not extract Telegram ID");
           setError("Could not get Telegram ID from SDK");
           setLoading(false);
@@ -552,16 +566,25 @@ export default function MobileTrading() {
         }
 
         if (!initData) {
-          console.error("[v0] Could not extract initData");
-          setError("Could not get initData from SDK");
-          setLoading(false);
-          return;
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[v0] initData not found in development — using fallback.");
+            // Provide a harmless fallback so the MiniAppClient constructor can run locally.
+            // The client implementation should tolerate this in demo/dev flows.
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            initData = "";
+          } else {
+            console.error("[v0] Could not extract initData");
+            setError("Could not get initData from SDK");
+            setLoading(false);
+            return;
+          }
         }
 
         console.log("[v0] ✓ Got Telegram ID:", telegramId);
         console.log("[v0] ✓ Got initData length:", initData.length);
 
-        const newClient = new MiniAppClient(telegramId.toString(), initData);
+        const newClient = new MiniAppClient((telegramId ?? "").toString(), initData);
         setClient(newClient);
 
         const chainsData = await newClient.getAvailableChains();
@@ -1161,8 +1184,8 @@ export default function MobileTrading() {
       {/* ↓↓↓ PERPS MODAL ↓↓↓ */}
       {showPerps && client && (
         <div className="fixed inset-0 z-[100] bg-black">
-          <PerpDex 
-            onClose={() => setShowPerps(false)} 
+          <PerpDex
+            onClose={() => setShowPerps(false)}
             telegramClient={client}
           />
         </div>
