@@ -17,7 +17,7 @@ import type {
 export class MiniAppClient {
   private telegramId: string;
   private backendUrl: string;
-  private initData: string;
+  // private initData: string;
 
   constructor(
     telegramId: string,
@@ -25,7 +25,7 @@ export class MiniAppClient {
     backendUrl = "https://4554ef109d5c.ngrok-free.app"
   ) {
     this.telegramId = telegramId;
-    this.initData = initData;
+    // this.initData = initData;
     this.backendUrl = backendUrl;
   }
 
@@ -37,7 +37,7 @@ export class MiniAppClient {
     return {
       "ngrok-skip-browser-warning": "true",
       "Content-Type": "application/json",
-      "x-telegram-init-data": this.initData,
+      // "x-telegram-init-data": this.initData,
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
