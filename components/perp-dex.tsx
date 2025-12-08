@@ -1,11 +1,9 @@
 "use client"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { ArrowUpRight, ArrowDownLeft, TrendingUp, ChevronLeft, Settings, X } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { PerpPriceWebSocket } from "@/lib/perps"
-import type { PerpPair, PriceUpdateData } from "@/lib/types"
 
 interface PerpDexProps {
   onClose: () => void
@@ -48,14 +46,11 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
   } | null>(null)
   const [chartData, setChartData] = useState<Array<{ time: string; price: number }>>([])
   const [stats, setStats] = useState<any>(null)
-  const priceWsRef = useRef<PerpPriceWebSocket | null>(null)
-  const [wsConnected, setWsConnected] = useState(false)
-  const priceHistoryRef = useRef<Map<string, number[]>>(new Map())
 
-  const showNotification = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
+  const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
-  }, [])
+  }
 
   const generateChartData = useCallback((basePrice: number) => {
     const data = []
@@ -68,85 +63,6 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     }
     return data
   }, [])
-
-  // Initialize WebSocket connection
-  // Update chart when selected pair changes
-  useEffect(() => {
-    const history = priceHistoryRef.current.get(selectedPair)
-    if (history && history.length > 0) {
-      const newChartData = history.map((price, i) => ({
-        time: `${12 + Math.floor(i / 4)}:${(i % 4) * 15}`,
-        price: price,
-      }))
-      setChartData(newChartData)
-    } else {
-      const initialPair = TRADING_PAIRS.find((p) => p.symbol === selectedPair)
-      if (initialPair) {
-        setChartData(generateChartData(initialPair.initialPrice))
-      }
-    }
-  }, [selectedPair, generateChartData])
-
-  useEffect(() => {
-    const initWebSocket = async () => {
-      try {
-        const backendUrl = telegramClient.backendUrl || "https://5bc58216ecea.ngrok-free.app"
-        const telegramId = telegramClient.getTelegramId()
-        
-        priceWsRef.current = new PerpPriceWebSocket(backendUrl, telegramId)
-        
-        await priceWsRef.current.connect()
-        setWsConnected(true)
-        
-        // Subscribe to all trading pairs
-        const pairs: PerpPair[] = TRADING_PAIRS.map(p => p.symbol as PerpPair)
-        priceWsRef.current.subscribeToPairs(pairs)
-        
-        // Set up price update callbacks for each pair
-        pairs.forEach((pair) => {
-          priceWsRef.current?.onPriceUpdate(pair, (data: PriceUpdateData) => {
-            setTradingPairs((prev) => 
-              prev.map((p) => {
-                if (p.symbol === pair) {
-                  const oldPrice = p.price
-                  const newPrice = data.price
-                  const change24h = ((newPrice - oldPrice) / oldPrice) * 100
-                  
-                  // Store price in history for chart updates
-                  const history = priceHistoryRef.current.get(pair) || []
-                  history.push(newPrice)
-                  if (history.length > 50) history.shift()
-                  priceHistoryRef.current.set(pair, history)
-                  
-                  return {
-                    ...p,
-                    price: newPrice,
-                    change24h: change24h,
-                  }
-                }
-                return p
-              })
-            )
-          })
-        })
-        
-        showNotification("Connected to live prices", "success")
-      } catch (error) {
-        console.error("Failed to initialize WebSocket:", error)
-        showNotification("Failed to connect to live prices", "error")
-        setWsConnected(false)
-      }
-    }
-
-    initWebSocket()
-
-    return () => {
-      if (priceWsRef.current) {
-        priceWsRef.current.close()
-        priceWsRef.current = null
-      }
-    }
-  }, [telegramClient, showNotification])
 
   useEffect(() => {
     const initPerps = async () => {
@@ -172,6 +88,11 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         if (statsData.success) {
           setStats(statsData)
         }
+
+        const initialPair = TRADING_PAIRS.find((p) => p.symbol === selectedPair)
+        if (initialPair) {
+          setChartData(generateChartData(initialPair.initialPrice))
+        }
       } catch (error) {
         console.error("Error initializing perps:", error)
         showNotification("Failed to initialize perp trading", "error")
@@ -179,26 +100,7 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     }
 
     initPerps()
-    
-    // Refresh positions and stats every 10 seconds
-    const refreshInterval = setInterval(async () => {
-      try {
-        const response = await telegramClient.getPerpPositions("OPEN")
-        if (response.success && response.positions) {
-          setPositions(response.positions)
-        }
-
-        const statsData = await telegramClient.getPerpTradingStats()
-        if (statsData.success) {
-          setStats(statsData)
-        }
-      } catch (error) {
-        console.error("Error refreshing data:", error)
-      }
-    }, 10000)
-
-    return () => clearInterval(refreshInterval)
-  }, [telegramClient, showNotification])
+  }, [telegramClient, selectedPair, generateChartData])
 
   const handleOpenPosition = async () => {
     if (!tradeMode || !collateral || isTrading) return
@@ -234,19 +136,6 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         if (response.newDemoBalance) {
           setDemoBalance(Number.parseFloat(response.newDemoBalance))
         }
-        
-        // Refresh positions
-        const positionsResponse = await telegramClient.getPerpPositions("OPEN")
-        if (positionsResponse.success && positionsResponse.positions) {
-          setPositions(positionsResponse.positions)
-        }
-        
-        // Refresh stats
-        const statsData = await telegramClient.getPerpTradingStats()
-        if (statsData.success) {
-          setStats(statsData)
-        }
-        
         setTradeMode(null)
         setCollateral("")
         setActiveTab("chart")
@@ -280,18 +169,6 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         )
         if (response.newDemoBalance) {
           setDemoBalance(Number.parseFloat(response.newDemoBalance))
-        }
-        
-        // Refresh positions
-        const positionsResponse = await telegramClient.getPerpPositions("OPEN")
-        if (positionsResponse.success && positionsResponse.positions) {
-          setPositions(positionsResponse.positions)
-        }
-        
-        // Refresh stats
-        const statsData = await telegramClient.getPerpTradingStats()
-        if (statsData.success) {
-          setStats(statsData)
         }
       } else {
         showNotification(`Failed to close position: ${response.error}`, "error")
@@ -327,12 +204,6 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
           <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-[#D4AF37] to-blue-400 bg-clip-text text-transparent truncate">
             Perp DEX
           </h1>
-          {wsConnected && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 rounded-full">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-xs text-emerald-400 font-medium">LIVE</span>
-            </div>
-          )}
         </div>
         <button
           onClick={onClose}
