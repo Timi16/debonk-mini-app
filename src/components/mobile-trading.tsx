@@ -1,65 +1,64 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import Image from "next/image";
-import { MiniAppClient } from "@/lib/telegram-client";
-import { DepositModal } from "./deposit-modal";
-import { WithdrawModal } from "./withdraw-modal";
-import PerpDex from "./perp-dex"; // ← ADD THIS
+import { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import Image from 'next/image';
+import { MiniAppClient } from '@/lib/telegram-client';
+import { DepositModal } from './deposit-modal';
+import { WithdrawModal } from './withdraw-modal';
+import PerpDex from './perp-dex'; // ← ADD THIS
 import type {
   Chain,
   PositionWithPrice,
   UserProfile,
   SelectedToken,
   Notification,
-} from "@/lib/types";
-import { getCachedPrice } from "@/lib/price-cache";
-import { RefreshCcw, Copy, TrendingUp } from "lucide-react";
+} from '@/lib/types';
+import { getCachedPrice } from '@/lib/price-cache';
+import { RefreshCcw, Copy, TrendingUp } from 'lucide-react';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import logo from "@/assets/logo.webp";
-import WalletSkeleton from "./loading-skeleton";
-import { te } from "date-fns/locale";
-
+} from '@/components/ui/select';
+import logo from '@/assets/logo.webp';
+import WalletSkeleton from './loading-skeleton';
+import { te } from 'date-fns/locale';
 
 let WebApp: any = null;
 
 export default function MobileTrading() {
-  const [activeTab, setActiveTab] = useState("home");
-  const [mode, setMode] = useState<"demo" | "live">("demo");
-  const [tokenInput, setTokenInput] = useState("");
+  const [activeTab, setActiveTab] = useState('home');
+  const [mode, setMode] = useState<'demo' | 'live'>('demo');
+  const [tokenInput, setTokenInput] = useState('');
   const [client, setClient] = useState<MiniAppClient | null>(null);
   const [loading, setLoading] = useState(true);
   const [chains, setChains] = useState<Chain[]>([]);
-  const [selectedChain, setSelectedChain] = useState("solana");
+  const [selectedChain, setSelectedChain] = useState('solana');
   const [chainLoaded, setChainLoaded] = useState(false);
   const [balance, setBalance] = useState(0);
   const [nativePrice, setNativePrice] = useState(0);
-  const [walletAddress, setWalletAddress] = useState("");
+  const [walletAddress, setWalletAddress] = useState('');
   const [positions, setPositions] = useState<PositionWithPrice[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [loadingPositions, setLoadingPositions] = useState(false);
   const [showTokenDetail, setShowTokenDetail] = useState(false);
   const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(
     null
   );
-  const [pasteError, setPasteError] = useState("");
+  const [pasteError, setPasteError] = useState('');
   const [hasValidToken, setHasValidToken] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isTrading, setIsTrading] = useState(false);
   const [isTradingId, setIsTradingId] = useState<string>();
   const [showCustomBuyInput, setShowCustomBuyInput] = useState(false);
-  const [customBuyAmount, setCustomBuyAmount] = useState("");
+  const [customBuyAmount, setCustomBuyAmount] = useState('');
   const [showCustomSellInput, setShowCustomSellInput] = useState(false);
-  const [customSellAmount, setCustomSellAmount] = useState("");
+  const [customSellAmount, setCustomSellAmount] = useState('');
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [balancePriceChange, setBalancePriceChange] = useState(0);
@@ -76,7 +75,7 @@ export default function MobileTrading() {
   // Show notification
   const showNotification = (
     message: string,
-    type: "success" | "error" | "info" = "info"
+    type: 'success' | 'error' | 'info' = 'info'
   ) => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications((prev) => [...prev, { id, message, type }]);
@@ -96,24 +95,24 @@ export default function MobileTrading() {
   const fetchNativePrice = async (chainKey: string) => {
     try {
       const currentChain = chains.find((c) => c.key === chainKey);
-      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || "SOL";
+      const symbol = currentChain?.nativeToken.symbol?.toUpperCase() || 'SOL';
 
       const price = await getCachedPrice(symbol);
 
-      if (typeof price !== "number") {
+      if (typeof price !== 'number') {
         console.error(`[v0] Invalid price for ${symbol}`);
         return;
       }
 
       setNativePrice(price);
     } catch (err) {
-      console.error("[v0] Error fetching native token price:", err);
+      console.error('[v0] Error fetching native token price:', err);
     }
   };
 
   const fetchChainData = async (
     chainKey: string,
-    modeType: "demo" | "live",
+    modeType: 'demo' | 'live',
     isInitialLoad = false
   ) => {
     if (!client) return;
@@ -122,7 +121,7 @@ export default function MobileTrading() {
       const initKey = `${modeType}-${chainKey}`;
       const isFirstTimeForThisChain = !initializedRef.current.has(initKey);
 
-      if (modeType === "demo") {
+      if (modeType === 'demo') {
         const demoBalanceData = await client.getDemoBalance(chainKey);
         if (demoBalanceData.success) {
           const demoBalanceNum = Number.parseFloat(demoBalanceData.demoBalance);
@@ -234,7 +233,7 @@ export default function MobileTrading() {
         setPositions(enrichedPositions);
       }
     } catch (err) {
-      console.error("[v0] Error fetching chain data:", err);
+      console.error('[v0] Error fetching chain data:', err);
     }
   };
 
@@ -245,26 +244,26 @@ export default function MobileTrading() {
       await fetchChainData(selectedChain, mode, false);
       await fetchNativePrice(selectedChain);
     } catch (err) {
-      console.error("[v0] Error refreshing data:", err);
+      console.error('[v0] Error refreshing data:', err);
     }
   };
 
   const handleBuyWithAmount = async (amountStr: string) => {
     if (!client || !selectedToken || isTrading) return;
 
-    const amount = Number.parseFloat(amountStr.split(" ")[0]);
+    const amount = Number.parseFloat(amountStr.split(' ')[0]);
 
     if (isNaN(amount) || amount <= 0) {
-      showNotification("Invalid amount", "error");
+      showNotification('Invalid amount', 'error');
       return;
     }
 
     setIsTrading(true);
-    showNotification("Processing buy transaction...", "info");
+    showNotification('Processing buy transaction...', 'info');
 
     try {
       const result =
-        mode === "demo"
+        mode === 'demo'
           ? await client.demoBuyToken(
               selectedChain,
               selectedToken.address,
@@ -278,21 +277,21 @@ export default function MobileTrading() {
             );
 
       if (result.success) {
-        showNotification("Buy transaction successful!", "success");
+        showNotification('Buy transaction successful!', 'success');
         setShowTokenDetail(false);
-        setTokenInput("");
+        setTokenInput('');
         setSelectedToken(null);
         setHasValidToken(false);
         setShowCustomBuyInput(false);
-        setCustomBuyAmount("");
+        setCustomBuyAmount('');
         await refreshData();
       } else {
-        showNotification(`Buy failed: ${result.error}`, "error");
+        showNotification(`Buy failed: ${result.error}`, 'error');
       }
     } catch (err) {
       showNotification(
-        `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error"
+        `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        'error'
       );
     } finally {
       setIsTrading(false);
@@ -303,7 +302,7 @@ export default function MobileTrading() {
     const amount = Number.parseFloat(customBuyAmount);
 
     if (isNaN(amount) || amount <= 0) {
-      showNotification("Please enter a valid amount", "error");
+      showNotification('Please enter a valid amount', 'error');
       return;
     }
 
@@ -313,35 +312,35 @@ export default function MobileTrading() {
   const handleSellWithAmount = async (amountStr: string) => {
     if (!client || !selectedToken || isTrading) return;
 
-    const positionsList = mode === "demo" ? demoPositions : positions;
+    const positionsList = mode === 'demo' ? demoPositions : positions;
     const position = positionsList.find(
       (p) =>
         p.tokenAddress.toLowerCase() === selectedToken.address.toLowerCase()
     );
     if (!position) {
-      showNotification("Position not found", "error");
+      showNotification('Position not found', 'error');
       return;
     }
 
     let percent: number;
-    if (amountStr.includes("%")) {
-      percent = Number.parseFloat(amountStr.replace("%", ""));
+    if (amountStr.includes('%')) {
+      percent = Number.parseFloat(amountStr.replace('%', ''));
     } else {
       percent = Number.parseFloat(amountStr);
     }
 
     if (isNaN(percent) || percent <= 0 || percent > 100) {
-      showNotification("Invalid sell amount (must be between 0-100%)", "error");
+      showNotification('Invalid sell amount (must be between 0-100%)', 'error');
       return;
     }
 
     setIsTrading(true);
     setIsTradingId(position.id);
-    showNotification(`Processing sell ${percent}% transaction...`, "info");
+    showNotification(`Processing sell ${percent}% transaction...`, 'info');
 
     try {
       const result =
-        mode === "demo"
+        mode === 'demo'
           ? await client.demoSellToken(
               position.chain,
               position.tokenAddress,
@@ -355,22 +354,22 @@ export default function MobileTrading() {
             );
 
       if (result.success) {
-        showNotification("Sell transaction successful!", "success");
+        showNotification('Sell transaction successful!', 'success');
         setShowTokenDetail(false);
         setShowCustomSellInput(false);
-        setCustomSellAmount("");
+        setCustomSellAmount('');
         await refreshData();
       } else {
-        showNotification(`Sell failed: ${result.error}`, "error");
+        showNotification(`Sell failed: ${result.error}`, 'error');
       }
     } catch (err) {
       showNotification(
-        `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error"
+        `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        'error'
       );
     } finally {
       setIsTrading(false);
-      setIsTradingId("");
+      setIsTradingId('');
     }
   };
 
@@ -378,12 +377,12 @@ export default function MobileTrading() {
     const amount = Number.parseFloat(customSellAmount);
 
     if (isNaN(amount) || amount <= 0) {
-      showNotification("Please enter a valid amount", "error");
+      showNotification('Please enter a valid amount', 'error');
       return;
     }
 
     if (amount > 100) {
-      showNotification("Please enter a percentage between 0-100", "error");
+      showNotification('Please enter a percentage between 0-100', 'error');
       return;
     }
 
@@ -393,7 +392,7 @@ export default function MobileTrading() {
   const handlePositionClick = async (position: PositionWithPrice) => {
     if (!client || isTrading) return;
 
-    showNotification("Loading token details...", "info");
+    showNotification('Loading token details...', 'info');
 
     try {
       const details = await client.getTokenDetails(
@@ -405,8 +404,8 @@ export default function MobileTrading() {
         const token = details.token;
 
         const formatChange = (val: number | undefined): string => {
-          if (val === undefined) return "0.00%";
-          return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`;
+          if (val === undefined) return '0.00%';
+          return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
         };
 
         const formatMarketCap = (mc: number): string => {
@@ -422,7 +421,7 @@ export default function MobileTrading() {
         const h24Volume = token.volume?.h24 ?? 0;
 
         const currentChain = chains.find((c) => c.key === position.chain);
-        const nativeSymbol = currentChain?.nativeToken.symbol || "SOL";
+        const nativeSymbol = currentChain?.nativeToken.symbol || 'SOL';
 
         const buyAmounts = [
           `0.1 ${nativeSymbol}`,
@@ -452,11 +451,11 @@ export default function MobileTrading() {
 
         setShowTokenDetail(true);
       } else {
-        showNotification("Failed to fetch token details", "error");
+        showNotification('Failed to fetch token details', 'error');
       }
     } catch (err) {
-      console.error("[v0] Failed to fetch token:", err);
-      showNotification("Failed to load token details", "error");
+      console.error('[v0] Failed to fetch token:', err);
+      showNotification('Failed to load token details', 'error');
     }
   };
 
@@ -467,24 +466,24 @@ export default function MobileTrading() {
     if (!client || isTrading) return;
 
     let percent: number;
-    if (amountStr.includes("%")) {
-      percent = Number.parseFloat(amountStr.replace("%", ""));
+    if (amountStr.includes('%')) {
+      percent = Number.parseFloat(amountStr.replace('%', ''));
     } else {
       percent = Number.parseFloat(amountStr);
     }
 
     if (isNaN(percent) || percent <= 0 || percent > 100) {
-      showNotification("Invalid sell amount (must be between 0-100%)", "error");
+      showNotification('Invalid sell amount (must be between 0-100%)', 'error');
       return;
     }
 
     setIsTrading(true);
     setIsTradingId(position.id);
-    showNotification(`Processing sell ${percent}% transaction...`, "info");
+    showNotification(`Processing sell ${percent}% transaction...`, 'info');
 
     try {
       const result =
-        mode === "demo"
+        mode === 'demo'
           ? await client.demoSellToken(
               position.chain,
               position.tokenAddress,
@@ -498,45 +497,45 @@ export default function MobileTrading() {
             );
 
       if (result.success) {
-        showNotification("Sell transaction successful!", "success");
+        showNotification('Sell transaction successful!', 'success');
         await refreshData();
       } else {
-        showNotification(`Sell failed: ${result.error}`, "error");
+        showNotification(`Sell failed: ${result.error}`, 'error');
       }
     } catch (err) {
       showNotification(
-        `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error"
+        `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        'error'
       );
     } finally {
       setIsTrading(false);
-      setIsTradingId("");
+      setIsTradingId('');
     }
   };
 
   useEffect(() => {
     const initializeMiniApp = async () => {
       try {
-        console.log("[v0] === TELEGRAM MINI APP INIT WITH SDK ===");
+        console.log('[v0] === TELEGRAM MINI APP INIT WITH SDK ===');
 
         const savedChain =
-          typeof window !== "undefined"
-            ? localStorage.getItem("selectedChain")
+          typeof window !== 'undefined'
+            ? localStorage.getItem('selectedChain')
             : null;
         if (savedChain) {
           setSelectedChain(savedChain);
         }
 
-        if (typeof window !== "undefined") {
+        if (typeof window !== 'undefined') {
           try {
-            const twaModule = await import("@twa-dev/sdk");
+            const twaModule = await import('@twa-dev/sdk');
             WebApp = twaModule.default;
             WebApp.ready();
-            console.log("[v0] ✓ WebApp SDK ready");
+            console.log('[v0] ✓ WebApp SDK ready');
           } catch (sdkErr) {
-            console.warn("[v0] WebApp SDK not available, running in demo mode");
+            console.warn('[v0] WebApp SDK not available, running in demo mode');
             setError(
-              "Telegram WebApp SDK not available. Running in demo mode."
+              'Telegram WebApp SDK not available. Running in demo mode.'
             );
             setLoading(false);
             return;
@@ -544,47 +543,50 @@ export default function MobileTrading() {
         }
         let telegramId: string | undefined = undefined;
 
-    
-        if (process.env.NODE_ENV && process.env.NODE_ENV === "development") {
-          console.log("[v0] Running in development mode");
-          telegramId = "1234567890";
-        }else{
-
+        if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') {
+          console.log('[v0] Running in development mode');
+          telegramId = '1234567890';
+        } else {
           telegramId = WebApp?.initDataUnsafe?.user?.id;
         }
-        console.log("[v0] Telegram ID from SDK:", telegramId);
+        console.log('[v0] Telegram ID from SDK:', telegramId);
         let initData = WebApp?.initData;
 
         // In development we may not have a real Telegram WebApp initData available
         // (eg. running locally). Allow dev mode to proceed by using a harmless
         // fallback and skip the hard failure checks that are required in prod.
-        if (!telegramId && process.env.NODE_ENV !== "development") {
-          console.error("[v0] Could not extract Telegram ID");
-          setError("Could not get Telegram ID from SDK");
+        if (!telegramId && process.env.NODE_ENV !== 'development') {
+          console.error('[v0] Could not extract Telegram ID');
+          setError('Could not get Telegram ID from SDK');
           setLoading(false);
           return;
         }
 
         if (!initData) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[v0] initData not found in development — using fallback.");
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(
+              '[v0] initData not found in development — using fallback.'
+            );
             // Provide a harmless fallback so the MiniAppClient constructor can run locally.
             // The client implementation should tolerate this in demo/dev flows.
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            initData = "";
+            initData = '';
           } else {
-            console.error("[v0] Could not extract initData");
-            setError("Could not get initData from SDK");
+            console.error('[v0] Could not extract initData');
+            setError('Could not get initData from SDK');
             setLoading(false);
             return;
           }
         }
 
-        console.log("[v0] ✓ Got Telegram ID:", telegramId);
-        console.log("[v0] ✓ Got initData length:", initData.length);
+        console.log('[v0] ✓ Got Telegram ID:', telegramId);
+        console.log('[v0] ✓ Got initData length:', initData.length);
 
-        const newClient = new MiniAppClient((telegramId ?? "").toString(), initData);
+        const newClient = new MiniAppClient(
+          (telegramId ?? '').toString(),
+          initData
+        );
         setClient(newClient);
 
         const chainsData = await newClient.getAvailableChains();
@@ -593,8 +595,8 @@ export default function MobileTrading() {
         const profile = await newClient.getUserProfile();
         setUserProfile(profile);
 
-        const chainToLoad = savedChain || "solana";
-        await fetchChainData(chainToLoad, "demo", true);
+        const chainToLoad = savedChain || 'solana';
+        await fetchChainData(chainToLoad, 'demo', true);
         await fetchNativePrice(chainToLoad);
 
         const addressData = await newClient.getWalletAddress(chainToLoad);
@@ -603,12 +605,12 @@ export default function MobileTrading() {
         }
 
         setChainLoaded(true);
-        console.log("[v0] === INIT COMPLETE ===");
+        console.log('[v0] === INIT COMPLETE ===');
       } catch (err) {
-        console.error("[v0] Initialization error:", err);
+        console.error('[v0] Initialization error:', err);
         setError(
           `Failed to initialize: ${
-            err instanceof Error ? err.message : "Unknown error"
+            err instanceof Error ? err.message : 'Unknown error'
           }`
         );
       } finally {
@@ -628,18 +630,18 @@ export default function MobileTrading() {
         await fetchChainData(selectedChain, mode, false);
         await fetchNativePrice(selectedChain);
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("selectedChain", selectedChain);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('selectedChain', selectedChain);
         }
 
-        if (mode === "live") {
+        if (mode === 'live') {
           const addressData = await client.getWalletAddress(selectedChain);
           if (addressData.success) {
             setWalletAddress(addressData.address);
           }
         }
       } catch (err) {
-        console.error("[v0] Error updating chain data:", err);
+        console.error('[v0] Error updating chain data:', err);
       } finally {
         setLoadingPositions(false);
       }
@@ -650,12 +652,12 @@ export default function MobileTrading() {
 
   const handleCopyAddress = () => {
     if (
-      typeof navigator !== "undefined" &&
+      typeof navigator !== 'undefined' &&
       navigator.clipboard &&
       walletAddress
     ) {
       navigator.clipboard.writeText(walletAddress);
-      showNotification("Address copied!", "success");
+      showNotification('Address copied!', 'success');
     }
   };
 
@@ -674,7 +676,7 @@ export default function MobileTrading() {
   const handleInputChange = async (value: string) => {
     const ca = value.trim();
     setTokenInput(ca);
-    setPasteError("");
+    setPasteError('');
 
     if (!ca) {
       setHasValidToken(false);
@@ -684,7 +686,7 @@ export default function MobileTrading() {
     }
 
     const currentChain = chains.find((c) => c.key === selectedChain);
-    const nativeSymbol = currentChain?.nativeToken.symbol || "SOL";
+    const nativeSymbol = currentChain?.nativeToken.symbol || 'SOL';
 
     if (client) {
       try {
@@ -697,8 +699,8 @@ export default function MobileTrading() {
           const token = details.token;
 
           const formatChange = (val: number | undefined): string => {
-            if (val === undefined) return "0.00%";
-            return `${val >= 0 ? "+" : ""}${val.toFixed(2)}%`;
+            if (val === undefined) return '0.00%';
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
           };
 
           const formatMarketCap = (mc: number): string => {
@@ -742,21 +744,21 @@ export default function MobileTrading() {
           setHasValidToken(true);
         } else {
           setHasValidToken(false);
-          setError("Failed to fetch token details");
+          setError('Failed to fetch token details');
         }
       } catch (err) {
         setHasValidToken(false);
-        console.error("[v0] Failed to fetch token:", err);
-        setError("Failed to process contract address");
+        console.error('[v0] Failed to fetch token:', err);
+        setError('Failed to process contract address');
       }
     }
   };
 
   const currentChain = chains.find((c) => c.key === selectedChain);
-  const nativeSymbol = currentChain?.nativeToken.symbol || "SOL";
-  const displayBalance = mode === "demo" ? demoBalance : balance;
+  const nativeSymbol = currentChain?.nativeToken.symbol || 'SOL';
+  const displayBalance = mode === 'demo' ? demoBalance : balance;
   const usdBalance = displayBalance * nativePrice;
-  const displayPositions = mode === "demo" ? demoPositions : positions;
+  const displayPositions = mode === 'demo' ? demoPositions : positions;
 
   if (loading) {
     return <WalletSkeleton />;
@@ -777,11 +779,11 @@ export default function MobileTrading() {
           <div
             key={notification.id}
             className={`px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
-              notification.type === "success"
-                ? "bg-green-500/90 text-white"
-                : notification.type === "error"
-                ? "bg-red-500/90 text-white"
-                : "bg-blue-500/90 text-white"
+              notification.type === 'success'
+                ? 'bg-green-500/90 text-white'
+                : notification.type === 'error'
+                ? 'bg-red-500/90 text-white'
+                : 'bg-blue-500/90 text-white'
             }`}
           >
             {notification.message}
@@ -833,28 +835,28 @@ export default function MobileTrading() {
           <div className="flex items-center gap-2 bg-[#0F0F0F] border border-[#1F1F1F] rounded-full px-2 py-1.5">
             <div
               className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${
-                mode === "demo"
-                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                  : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"
+                mode === 'demo'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]'
               }`}
-              onClick={() => setMode("demo")}
+              onClick={() => setMode('demo')}
             >
               • Demo
             </div>
             <div
               className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${
-                mode === "live"
-                  ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                  : "bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]"
+                mode === 'live'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'bg-[#1A1A1A] text-gray-300 border border-[#2A2A2A]'
               }`}
-              onClick={() => setMode("live")}
+              onClick={() => setMode('live')}
             >
               • Live
             </div>
           </div>
         </div>
 
-        <div className="relative bg-gradient-to-br from-[#1A1A1A] to-[#0F0F0F] rounded-3xl p-6 mb-6 overflow-hidden border border-[#252525]">
+        <div className="relative bg-linear-to-br from-[#1A1A1A] to-[#0F0F0F] rounded-3xl p-6 mb-6 overflow-hidden border border-[#252525]">
           <div className="pointer-events-none select-none absolute right-4 top-1/2 -translate-y-1/2 opacity-15">
             <Image
               src={logo}
@@ -895,7 +897,7 @@ export default function MobileTrading() {
             </p>
             <div className="flex items-baseline gap-2 mb-6">
               <h2 className="text-4xl font-bold text-white">
-                {client?.formatBalance(displayBalance) || "0.000"}
+                {client?.formatBalance(displayBalance) || '0.000'}
               </h2>
               <span className="text-xl text-gray-400">{nativeSymbol}</span>
               <button className="cursor-pointer" onClick={refreshData}>
@@ -904,10 +906,10 @@ export default function MobileTrading() {
             </div>
             <p
               className={`text-sm font-semibold mb-6 flex items-center gap-1 ${
-                balancePriceChange >= 0 ? "text-emerald-400" : "text-red-400"
+                balancePriceChange >= 0 ? 'text-emerald-400' : 'text-red-400'
               }`}
             >
-              {balancePriceChange >= 0 ? "▲" : "▼"}{" "}
+              {balancePriceChange >= 0 ? '▲' : '▼'}{' '}
               {Math.abs(balancePriceChange).toFixed(2)}%
             </p>
 
@@ -915,7 +917,7 @@ export default function MobileTrading() {
             <div className="mb-3">
               <Button
                 onClick={() => setShowPerps(true)}
-                className="w-full bg-gradient-to-r from-[#D4AF37] to-blue-400 hover:opacity-90 text-black font-bold rounded-xl h-12 flex items-center justify-center gap-2 transition-all shadow-lg"
+                className="w-full bg-linear-to-r from-[#D4AF37] to-blue-400 hover:opacity-90 text-black font-bold rounded-xl h-12 flex items-center justify-center gap-2 transition-all shadow-lg"
               >
                 <TrendingUp className="w-5 h-5" />
                 Trade Perpetuals
@@ -979,11 +981,11 @@ export default function MobileTrading() {
                         <span
                           className={`text-xs font-medium rounded ${
                             priceChange24h >= 0
-                              ? "text-emerald-400"
-                              : "text-red-400"
+                              ? 'text-emerald-400'
+                              : 'text-red-400'
                           }`}
                         >
-                          {priceChange24h >= 0 ? "+" : ""}
+                          {priceChange24h >= 0 ? '+' : ''}
                           {priceChange24h.toFixed(2)}%
                         </span>
                       )}
@@ -991,14 +993,14 @@ export default function MobileTrading() {
                     <Button
                       onClick={async (e) => {
                         e.stopPropagation();
-                        await handleSellPositionDirectly(position, "100%");
+                        await handleSellPositionDirectly(position, '100%');
                       }}
                       disabled={isTrading && isTradingId === position.id}
                       className="bg-[#3A3A3A] hover:bg-[#444444] text-white font-medium rounded-full px-4 h-9 text-xs disabled:opacity-50"
                     >
                       {isTrading && isTradingId === position.id
-                        ? "..."
-                        : "Sell 100%"}
+                        ? '...'
+                        : 'Sell 100%'}
                     </Button>
                   </div>
                   <div
@@ -1014,8 +1016,8 @@ export default function MobileTrading() {
                       <span
                         className={`text-xs font-medium px-2 py-1 rounded-full ${
                           priceChange24h >= 0
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-red-500/20 text-red-400"
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-red-500/20 text-red-400'
                         }`}
                       >
                         ${positionValue.toFixed(2)}
@@ -1038,18 +1040,18 @@ export default function MobileTrading() {
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Contract Address or Token"
               disabled={isTrading}
-              className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[color:rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] disabled:opacity-50"
+              className="bg-[#1A1A1A] text-white placeholder:text-gray-500 rounded-full h-12 pr-24 pl-4 border border-[rgba(212,175,55,0.2)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] disabled:opacity-50"
             />
             <Button
               onClick={hasValidToken ? handleBuyClick : handlePasteClick}
               disabled={isTrading}
               className={`absolute right-1 top-1 h-10 px-4 rounded-full border ${
                 hasValidToken
-                  ? "bg-[#D4AF37] hover:opacity-90 text-black font-semibold border-transparent"
-                  : "bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]"
+                  ? 'bg-[#D4AF37] hover:opacity-90 text-black font-semibold border-transparent'
+                  : 'bg-[#3A3A3A] hover:bg-[#444444] text-white border border-[#4A4A4A]'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {isTrading ? "..." : hasValidToken ? "Buy" : "Paste"}
+              {isTrading ? '...' : hasValidToken ? 'Buy' : 'Paste'}
             </Button>
           </div>
           {pasteError && (
@@ -1060,7 +1062,7 @@ export default function MobileTrading() {
         </div>
         <div className="flex items-center justify-between px-6 py-3 pb-[calc(env(safe-area-inset-bottom))] gap-2 max-w-2xl mx-auto">
           <button
-            onClick={() => setActiveTab("home")}
+            onClick={() => setActiveTab('home')}
             className="flex-1 flex flex-col items-center gap-1 transition-colors"
           >
             <Image
@@ -1070,12 +1072,12 @@ export default function MobileTrading() {
               height={24}
               className="w-6 h-6 opacity-50"
             />
-            {activeTab === "home" && (
+            {activeTab === 'home' && (
               <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
             )}
           </button>
           <button
-            onClick={() => setActiveTab("chart")}
+            onClick={() => setActiveTab('chart')}
             className="flex-1 flex flex-col items-center gap-1 transition-colors"
           >
             <Image
@@ -1083,14 +1085,14 @@ export default function MobileTrading() {
               alt="Charts"
               width={24}
               height={24}
-              className={`w-6 h-6 ${activeTab === "chart" ? "" : "opacity-50"}`}
+              className={`w-6 h-6 ${activeTab === 'chart' ? '' : 'opacity-50'}`}
             />
-            {activeTab === "chart" && (
+            {activeTab === 'chart' && (
               <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
             )}
           </button>
           <button
-            onClick={() => setActiveTab("settings")}
+            onClick={() => setActiveTab('settings')}
             className="flex-1 flex flex-col items-center gap-1 transition-colors"
           >
             <Image
@@ -1099,15 +1101,15 @@ export default function MobileTrading() {
               width={24}
               height={24}
               className={`w-6 h-6 ${
-                activeTab === "settings" ? "" : "opacity-50"
+                activeTab === 'settings' ? '' : 'opacity-50'
               }`}
             />
-            {activeTab === "settings" && (
+            {activeTab === 'settings' && (
               <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
             )}
           </button>
           <button
-            onClick={() => setActiveTab("social")}
+            onClick={() => setActiveTab('social')}
             className="flex-1 flex flex-col items-center gap-1 transition-colors"
           >
             <Image
@@ -1116,15 +1118,15 @@ export default function MobileTrading() {
               width={24}
               height={24}
               className={`w-6 h-6 ${
-                activeTab === "social" ? "" : "opacity-50"
+                activeTab === 'social' ? '' : 'opacity-50'
               }`}
             />
-            {activeTab === "social" && (
+            {activeTab === 'social' && (
               <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
             )}
           </button>
           <button
-            onClick={() => setActiveTab("help")}
+            onClick={() => setActiveTab('help')}
             className="flex-1 flex flex-col items-center gap-1 transition-colors"
           >
             <Image
@@ -1132,9 +1134,9 @@ export default function MobileTrading() {
               alt="Help"
               width={24}
               height={24}
-              className={`w-6 h-6 ${activeTab === "help" ? "" : "opacity-50"}`}
+              className={`w-6 h-6 ${activeTab === 'help' ? '' : 'opacity-50'}`}
             />
-            {activeTab === "help" && (
+            {activeTab === 'help' && (
               <div className="w-8 h-0.5 bg-[#D4AF37]"></div>
             )}
           </button>
@@ -1165,7 +1167,7 @@ export default function MobileTrading() {
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
         walletAddress={walletAddress}
-        chainName={currentChain?.name || "Solana"}
+        chainName={currentChain?.name || 'Solana'}
         chainKey={selectedChain}
       />
 
@@ -1173,7 +1175,7 @@ export default function MobileTrading() {
         isOpen={showWithdrawModal}
         onClose={() => setShowWithdrawModal(false)}
         walletAddress={walletAddress}
-        chainName={currentChain?.name || "Solana"}
+        chainName={currentChain?.name || 'Solana'}
         chainKey={selectedChain}
         balance={balance}
         nativePrice={nativePrice}
@@ -1183,7 +1185,7 @@ export default function MobileTrading() {
 
       {/* ↓↓↓ PERPS MODAL ↓↓↓ */}
       {showPerps && client && (
-        <div className="fixed inset-0 z-[100] bg-black">
+        <div className="fixed inset-0 z-100 bg-black">
           <PerpDex
             onClose={() => setShowPerps(false)}
             telegramClient={client}
