@@ -64,7 +64,7 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
     setIsConnecting(true)
     isClosedManuallyRef.current = false
 
-    const backendUrl = telegramClient.backendUrl || "https://api.mybackend.com"
+    const backendUrl = telegramClient.backendUrl || "xhttps://5bc58216ecea.ngrok-free.app"
     const wsUrl = backendUrl.replace("https://", "wss://").replace("http://", "ws://") + "/prices"
 
     wsRef.current = new WebSocket(wsUrl)
