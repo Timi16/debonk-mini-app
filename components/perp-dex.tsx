@@ -4,65 +4,8 @@ import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { ArrowUpRight, ArrowDownLeft, TrendingUp, ChevronLeft, Settings, X } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-
-// Mock PerpPriceWebSocket for demo - replace with actual import
-class PerpPriceWebSocket {
-  private ws: WebSocket | null = null
-  private url: string
-  private telegramId?: string
-  private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
-  private reconnectDelay = 3000
-  private priceUpdateCallbacks: Map<string, Set<(data: any) => void>> = new Map()
-  private isConnecting = false
-  private isClosedManually = false
-  private simulationInterval: any = null
-
-  constructor(backendUrl: string, telegramId?: string) {
-    this.url = backendUrl
-    this.telegramId = telegramId
-  }
-
-  connect(): Promise<void> {
-    return new Promise((resolve) => {
-      console.log("✅ Mock WebSocket connected")
-      // Simulate price updates
-      this.simulationInterval = setInterval(() => {
-        this.priceUpdateCallbacks.forEach((callbacks, pair) => {
-          callbacks.forEach(callback => {
-            callback({
-              price: 42000 + Math.random() * 1000,
-              timestamp: Date.now()
-            })
-          })
-        })
-      }, 2000)
-      resolve()
-    })
-  }
-
-  subscribeToPairs(pairs: string[]): void {
-    console.log("📡 Subscribed to pairs:", pairs)
-  }
-
-  onPriceUpdate(pair: string, callback: (data: any) => void): void {
-    if (!this.priceUpdateCallbacks.has(pair)) {
-      this.priceUpdateCallbacks.set(pair, new Set())
-    }
-    this.priceUpdateCallbacks.get(pair)!.add(callback)
-  }
-
-  close(): void {
-    if (this.simulationInterval) {
-      clearInterval(this.simulationInterval)
-    }
-    this.priceUpdateCallbacks.clear()
-  }
-
-  isConnected(): boolean {
-    return true
-  }
-}
+import { PerpPriceWebSocket } from "@/lib/perps"
+import type { PerpPair, PriceUpdateData } from "@/lib/types"
 
 interface PerpDexProps {
   onClose: () => void
@@ -156,12 +99,12 @@ export default function PerpDex({ onClose, telegramClient }: PerpDexProps) {
         setWsConnected(true)
         
         // Subscribe to all trading pairs
-        const pairs = TRADING_PAIRS.map(p => p.symbol)
+        const pairs: PerpPair[] = TRADING_PAIRS.map(p => p.symbol as PerpPair)
         priceWsRef.current.subscribeToPairs(pairs)
         
         // Set up price update callbacks for each pair
         pairs.forEach((pair) => {
-          priceWsRef.current?.onPriceUpdate(pair, (data: any) => {
+          priceWsRef.current?.onPriceUpdate(pair, (data: PriceUpdateData) => {
             setTradingPairs((prev) => 
               prev.map((p) => {
                 if (p.symbol === pair) {
