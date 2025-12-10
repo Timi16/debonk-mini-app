@@ -12,20 +12,28 @@ import type {
   OpenPerpPositionResponse,
   ClosePerpPositionResponse,
   PerpTradingStats,
+  TradingPair,
+  PairPriceData,
+  PairSnapshot,
+  MarketSnapshot
 } from "./types";
 
+// Trading Pair Types
 export class MiniAppClient {
   private telegramId: string;
   private backendUrl: string;
-  // private initData: string;
+  private ws: WebSocket | null = null;
+  private priceSubscriptions: Map<string, Set<(data: PairPriceData) => void>> = new Map();
+  private pairsCache: Map<string, TradingPair> | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_TTL = 60000; // 1 minute cache
 
   constructor(
     telegramId: string,
     initData: string,
-    backendUrl = "https://4554ef109d5c.ngrok-free.app"
+    backendUrl = " https://4413c0232406.ngrok-free.app"
   ) {
     this.telegramId = telegramId;
-    // this.initData = initData;
     this.backendUrl = backendUrl;
   }
 
@@ -37,12 +45,429 @@ export class MiniAppClient {
     return {
       "ngrok-skip-browser-warning": "true",
       "Content-Type": "application/json",
-      // "x-telegram-init-data": this.initData,
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
   }
+
+  // ============================================
+  // TRADING PAIRS - NEW FUNCTIONALITY
+  // ============================================
+
+  /**
+   * Get all available trading pairs
+   * @param forceRefresh - Force refresh from backend (bypass cache)
+   * @returns Array of available trading pairs
+   */
+  async getAvailablePairs(forceRefresh: boolean = false): Promise<TradingPair[]> {
+    try {
+      // Check cache first
+      if (!forceRefresh && this.pairsCache && (Date.now() - this.cacheTimestamp) < this.CACHE_TTL) {
+        return Array.from(this.pairsCache.values());
+      }
+
+      const res = await fetch(`${this.backendUrl}/api/perp/pairs`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      
+      // Update cache
+      this.pairsCache = new Map();
+      data.pairs.forEach((pair: TradingPair) => {
+        this.pairsCache!.set(pair.pair, pair);
+      });
+      this.cacheTimestamp = Date.now();
+
+      return data.pairs;
+    } catch (error) {
+      console.error("getAvailablePairs error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get specific pair details
+   * @param pairName - Pair name (e.g., "BTC/USD")
+   * @returns Trading pair details
+   */
+  async getPairDetails(pairName: string): Promise<TradingPair> {
+    try {
+      // Check cache first
+      if (this.pairsCache && this.pairsCache.has(pairName)) {
+        const cachedPair = this.pairsCache.get(pairName);
+        if (cachedPair && (Date.now() - this.cacheTimestamp) < this.CACHE_TTL) {
+          return cachedPair;
+        }
+      }
+
+      const res = await fetch(`${this.backendUrl}/api/perp/pairs/${pairName}`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      
+      // Update cache
+      if (!this.pairsCache) {
+        this.pairsCache = new Map();
+      }
+      this.pairsCache.set(pairName, data.pair);
+
+      return data.pair;
+    } catch (error) {
+      console.error(`getPairDetails error for ${pairName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current price for a trading pair
+   * @param pairName - Pair name (e.g., "BTC/USD")
+   * @returns Current price data
+   */
+  async getPairPrice(pairName: string): Promise<PairPriceData> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/perp/price/${pairName}`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      return await res.json();
+    } catch (error) {
+      console.error(`getPairPrice error for ${pairName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get prices for multiple pairs at once
+   * @param pairNames - Array of pair names
+   * @returns Array of price data
+   */
+  async getMultiplePairPrices(pairNames: string[]): Promise<PairPriceData[]> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/perp/prices`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({ pairs: pairNames }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      return data.prices;
+    } catch (error) {
+      console.error("getMultiplePairPrices error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get complete market snapshot (all pairs with prices)
+   * @returns Complete market snapshot
+   */
+  async getMarketSnapshot(): Promise<MarketSnapshot> {
+    try {
+      const res = await fetch(`${this.backendUrl}/api/perp/snapshot`, {
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      
+      // Convert to Map for easier access
+      const pairsMap = new Map<string, TradingPair>();
+      data.pairs.forEach((pair: TradingPair) => {
+        pairsMap.set(pair.pair, pair);
+      });
+
+      // Update cache
+      this.pairsCache = pairsMap;
+      this.cacheTimestamp = data.timestamp;
+
+      return {
+        pairs: pairsMap,
+        timestamp: data.timestamp,
+      };
+    } catch (error) {
+      console.error("getMarketSnapshot error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get snapshot for a specific pair (includes price + market data)
+   * @param pairName - Pair name
+   * @returns Pair snapshot
+   */
+  async getPairSnapshot(pairName: string): Promise<PairSnapshot> {
+    try {
+      const [priceData, marketData] = await Promise.all([
+        this.getPairPrice(pairName),
+        this.getPairDetails(pairName),
+      ]);
+
+      return {
+        pair: pairName,
+        priceData,
+        marketData,
+      };
+    } catch (error) {
+      console.error(`getPairSnapshot error for ${pairName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search/filter pairs by criteria
+   * @param filter - Filter criteria
+   * @returns Filtered pairs
+   */
+  async searchPairs(filter: {
+    from?: string;
+    to?: string;
+    minLeverage?: number;
+    maxLeverage?: number;
+    groupIndex?: number;
+  }): Promise<TradingPair[]> {
+    const allPairs = await this.getAvailablePairs();
+
+    return allPairs.filter((pair) => {
+      if (filter.from && !pair.from.toLowerCase().includes(filter.from.toLowerCase())) {
+        return false;
+      }
+      if (filter.to && !pair.to.toLowerCase().includes(filter.to.toLowerCase())) {
+        return false;
+      }
+      if (filter.minLeverage && pair.maxLeverage < filter.minLeverage) {
+        return false;
+      }
+      if (filter.maxLeverage && pair.maxLeverage > filter.maxLeverage) {
+        return false;
+      }
+      if (filter.groupIndex !== undefined && pair.groupIndex !== filter.groupIndex) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Get pairs by group index
+   * @param groupIndex - Group index
+   * @returns Pairs in the group
+   */
+  async getPairsByGroup(groupIndex: number): Promise<TradingPair[]> {
+    return this.searchPairs({ groupIndex });
+  }
+
+  // ============================================
+  // WEBSOCKET PRICE STREAMING
+  // ============================================
+
+  /**
+   * Connect to WebSocket for real-time price updates
+   */
+  connectWebSocket(): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log("WebSocket already connected");
+      return;
+    }
+
+    const wsUrl = this.backendUrl.replace(/^https?/, "ws") + "/ws/prices";
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log("✅ Connected to price feed WebSocket");
+      
+      // Re-subscribe to all pairs if reconnecting
+      if (this.priceSubscriptions.size > 0) {
+        const pairs = Array.from(this.priceSubscriptions.keys());
+        this.ws?.send(JSON.stringify({
+          type: "subscribe",
+          pairs,
+        }));
+      }
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+
+        if (message.type === "price_update") {
+          const { pair, data } = message;
+          const callbacks = this.priceSubscriptions.get(pair);
+          
+          if (callbacks) {
+            callbacks.forEach((callback) => {
+              try {
+                callback(data);
+              } catch (error) {
+                console.error("Error in price callback:", error);
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+
+    this.ws.onerror = (error) => {
+      console.error("❌ WebSocket error:", error);
+    };
+
+    this.ws.onclose = () => {
+      console.log("⚠️ WebSocket closed, reconnecting in 5s...");
+      setTimeout(() => this.connectWebSocket(), 5000);
+    };
+  }
+
+  /**
+   * Subscribe to real-time price updates for a pair
+   * @param pairName - Pair name
+   * @param callback - Callback function to receive price updates
+   */
+  subscribeToPairPrice(
+    pairName: string,
+    callback: (data: PairPriceData) => void
+  ): void {
+    // Add callback to subscriptions
+    if (!this.priceSubscriptions.has(pairName)) {
+      this.priceSubscriptions.set(pairName, new Set());
+    }
+    this.priceSubscriptions.get(pairName)!.add(callback);
+
+    // Ensure WebSocket is connected
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.connectWebSocket();
+    }
+
+    // Send subscribe message
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: "subscribe",
+        pairs: [pairName],
+      }));
+    }
+  }
+
+  /**
+   * Unsubscribe from price updates
+   * @param pairName - Pair name
+   * @param callback - Callback to remove (optional, removes all if not provided)
+   */
+  unsubscribeFromPairPrice(
+    pairName: string,
+    callback?: (data: PairPriceData) => void
+  ): void {
+    const callbacks = this.priceSubscriptions.get(pairName);
+
+    if (!callbacks) return;
+
+    if (callback) {
+      callbacks.delete(callback);
+    } else {
+      callbacks.clear();
+    }
+
+    // If no more callbacks, unsubscribe from WebSocket
+    if (callbacks.size === 0) {
+      this.priceSubscriptions.delete(pairName);
+
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({
+          type: "unsubscribe",
+          pairs: [pairName],
+        }));
+      }
+    }
+  }
+
+  /**
+   * Close WebSocket connection
+   */
+  disconnectWebSocket(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.priceSubscriptions.clear();
+  }
+
+  // ============================================
+  // UTILITY METHODS FOR PAIRS
+  // ============================================
+
+  /**
+   * Format pair price with appropriate decimals
+   */
+  formatPairPrice(price: number, pairName: string): string {
+    if (pairName.startsWith("BTC") || pairName.startsWith("ETH")) {
+      return `$${price.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    }
+
+    if (
+      pairName.startsWith("SOL") ||
+      pairName.startsWith("BNB") ||
+      pairName.startsWith("AVAX") ||
+      pairName.startsWith("LINK")
+    ) {
+      return `$${price.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      })}`;
+    }
+
+    return `$${price.toLocaleString("en-US", {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6,
+    })}`;
+  }
+
+  /**
+   * Calculate liquidation price for a position
+   */
+  calculateLiquidationPrice(
+    entryPrice: number,
+    leverage: number,
+    isLong: boolean
+  ): number {
+    if (isLong) {
+      return entryPrice * (1 - 1 / leverage);
+    } else {
+      return entryPrice * (1 + 1 / leverage);
+    }
+  }
+
+  /**
+   * Calculate position size from collateral and leverage
+   */
+  calculatePositionSize(collateral: number, leverage: number): number {
+    return collateral * leverage;
+  }
+
+  /**
+   * Clear pairs cache
+   */
+  clearPairsCache(): void {
+    this.pairsCache = null;
+    this.cacheTimestamp = 0;
+  }
+
+  // ============================================
+  // ORIGINAL METHODS (keeping all existing functionality)
+  // ============================================
 
   async getUserProfile(): Promise<UserProfile> {
     try {
