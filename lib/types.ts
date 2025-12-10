@@ -292,3 +292,42 @@ export type PerpPair =
   | "AVAX/USD"
   | "DOT/USD"
   | "MATIC/USD";
+
+
+  export interface TradingPair {
+    pair: string;
+    from: string;
+    to: string;
+    currentPrice: number;
+    confidence: string;
+    timestamp: number;
+    spread: {
+      min: number;
+      max: number;
+    };
+    groupIndex: number;
+    feeIndex: number;
+    maxLeverage: number;
+    maxShortOiP: number;
+    maxLongOiP: number;
+  }
+  
+  export interface PairPriceData {
+    pair: string;
+    price: number;
+    confidence: string;
+    timestamp: number;
+    expo: number;
+  }
+  
+  export interface PairSnapshot {
+    pair: string;
+    priceData: PairPriceData;
+    marketData?: TradingPair;
+  }
+  
+  export interface MarketSnapshot {
+    pairs: Map<string, TradingPair>;
+    timestamp: number;
+  }
+  
