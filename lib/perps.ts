@@ -12,7 +12,7 @@ export class PerpPriceWebSocket {
   private isClosedManually = false;
 
   constructor(
-    backendUrl = "wss://4413c0232406.ngrok-free.app",
+    backendUrl = "wss://e0195484704c.ngrok-free.app",
     telegramId?: string
   ) {
     // Convert HTTP URL to WebSocket URL if needed
