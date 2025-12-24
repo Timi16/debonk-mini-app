@@ -1229,6 +1229,81 @@ export default function MobileTrading() {
                   {selectedToken.marketData.volume24h}
                 </div>
               </div>
+
+              {/* NEW: Capital Box */}
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                  Capital
+                </div>
+                <div className="text-md font-bold text-white">
+                  {(() => {
+                    const position = displayPositions.find(
+                      (p) =>
+                        p.tokenAddress.toLowerCase() ===
+                        selectedToken.address.toLowerCase()
+                    );
+                    if (!position) return "$0.00";
+
+                    const avgBuyPrice = parseFloat(position.avgBuyPrice);
+                    const amountHeld = parseFloat(position.amountHeld);
+                    const capital = avgBuyPrice * amountHeld;
+
+                    return `$${capital.toFixed(2)}`;
+                  })()}
+                </div>
+              </div>
+
+              {/* NEW: PnL Box */}
+              <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#2A2A2A]">
+                <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                  PnL
+                </div>
+                <div
+                  className={`text-md font-bold ${(() => {
+                    const position = displayPositions.find(
+                      (p) =>
+                        p.tokenAddress.toLowerCase() ===
+                        selectedToken.address.toLowerCase()
+                    );
+                    if (!position || !position.currentPrice)
+                      return "text-gray-400";
+
+                    const avgBuyPrice = parseFloat(position.avgBuyPrice);
+                    const currentPrice = position.currentPrice;
+                    const pnlPercent =
+                      ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
+
+                    return pnlPercent >= 0
+                      ? "text-emerald-400"
+                      : "text-red-400";
+                  })()}`}
+                >
+                  {(() => {
+                    const position = displayPositions.find(
+                      (p) =>
+                        p.tokenAddress.toLowerCase() ===
+                        selectedToken.address.toLowerCase()
+                    );
+                    if (!position || !position.currentPrice)
+                      return "$0.00 (0.00%)";
+
+                    const avgBuyPrice = parseFloat(position.avgBuyPrice);
+                    const amountHeld = parseFloat(position.amountHeld);
+                    const currentPrice = position.currentPrice;
+
+                    const capital = avgBuyPrice * amountHeld;
+                    const currentValue = currentPrice * amountHeld;
+                    const pnl = currentValue - capital;
+                    const pnlPercent =
+                      ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
+
+                    const sign = pnl >= 0 ? "+" : "";
+                    return `${sign}$${pnl.toFixed(
+                      2
+                    )} (${sign}${pnlPercent.toFixed(2)}%)`;
+                  })()}
+                </div>
+              </div>
             </div>
 
             {displayPositions.find(
