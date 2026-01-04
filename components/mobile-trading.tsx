@@ -282,6 +282,7 @@ export default function MobileTrading() {
 
       if (result.success) {
         showNotification("Buy transaction successful!", "success");
+        await refreshData(); // ✅ ADD THIS - Wait for refresh before clearing
         setShowTokenDetail(false);
         setTokenInput("");
         setSelectedToken(null);
@@ -312,6 +313,7 @@ export default function MobileTrading() {
     }
 
     await handleBuyWithAmount(customBuyAmount);
+    await refreshData(); // ✅ ADD THIS - Refresh before modal updates
   };
 
   // Handle sell with preset amount (percentage based)
@@ -902,12 +904,14 @@ export default function MobileTrading() {
             <div className="flex gap-3">
               <Button
                 onClick={() => setShowWithdrawModal(true)}
+                disabled={mode === "demo"} // ✅ FIX: Disable in demo mode
                 className="flex-1 bg-[#D4AF37] hover:opacity-90 text-black font-semibold rounded-xl h-11"
               >
                 Withdraw
               </Button>
               <Button
                 onClick={() => setShowDepositModal(true)}
+                disabled={mode === "demo"} // ✅ FIX: Disable in demo mode
                 className="flex-1 bg-[#1A1A1A] hover:bg-[#252525] text-white font-semibold rounded-xl h-11 border border-[#2A2A2A]"
               >
                 Deposit
