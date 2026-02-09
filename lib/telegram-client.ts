@@ -31,7 +31,7 @@ export class MiniAppClient {
   constructor(
     telegramId: string,
     initData: string,
-    backendUrl = "https://nonmartial-coccygeal-jacquetta.ngrok-free.dev"
+    backendUrl = "https://9a11-13-53-192-68.ngrok-free.app"
   ) {
     this.telegramId = telegramId;
     this.backendUrl = backendUrl;
